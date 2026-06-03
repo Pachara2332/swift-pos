@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { isStoreRole } from '@/lib/role-constants'
 import { createPasswordReset } from '@/lib/roles'
-import { sendSms } from '@/lib/sms'
+import { sendRolePasswordOtp } from '@/lib/sms'
+import { isValidE164PhoneNumber, normalizePhoneNumber } from '@/lib/phone'
 
 export async function POST(request: Request) {
   try {
@@ -11,8 +12,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Role, phone, and current password are required' }, { status: 400 })
     }
 
-    const cleanPhone = phone.trim()
-    if (cleanPhone.length < 8) {
+    const cleanPhone = normalizePhoneNumber(phone)
+    if (!isValidE164PhoneNumber(cleanPhone)) {
       return NextResponse.json({ error: 'Phone number is invalid' }, { status: 400 })
     }
 
@@ -21,9 +22,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: reset.error }, { status: 401 })
     }
 
-    await sendSms({
+    await sendRolePasswordOtp({
       to: cleanPhone,
-      message: `Swift POS ${role} password reset code: ${reset.code}. This code expires in 10 minutes.`,
+      role,
+      fallbackCode: reset.code,
     })
 
     return NextResponse.json({ expiresAt: reset.expiresAt })

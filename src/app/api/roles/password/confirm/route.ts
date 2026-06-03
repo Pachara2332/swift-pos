@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { isStoreRole } from '@/lib/role-constants'
 import { changeRolePassword } from '@/lib/roles'
+import { isTwilioVerifyConfigured, verifyRolePasswordOtp } from '@/lib/sms'
+import { isValidE164PhoneNumber, normalizePhoneNumber } from '@/lib/phone'
 
 export async function POST(request: Request) {
   try {
@@ -14,7 +16,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
     }
 
-    const result = await changeRolePassword(role, phone.trim(), otp.trim(), newPassword)
+    const cleanPhone = normalizePhoneNumber(phone)
+    const cleanOtp = otp.trim()
+    if (!isValidE164PhoneNumber(cleanPhone)) {
+      return NextResponse.json({ error: 'Phone number is invalid' }, { status: 400 })
+    }
+
+    const providerApproved = await verifyRolePasswordOtp(cleanPhone, cleanOtp)
+    if (!providerApproved) {
+      return NextResponse.json({ error: 'OTP is invalid or expired' }, { status: 401 })
+    }
+
+    const result = await changeRolePassword(role, cleanPhone, cleanOtp, newPassword, {
+      skipLocalOtpCheck: isTwilioVerifyConfigured(),
+    })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 401 })
     }

@@ -70,7 +70,7 @@ export async function createPasswordReset(role: StoreRole, phone: string, curren
   return { ok: true as const, code, expiresAt }
 }
 
-export async function changeRolePassword(role: StoreRole, phone: string, code: string, newPassword: string) {
+export async function changeRolePassword(role: StoreRole, phone: string, code: string, newPassword: string, options?: { skipLocalOtpCheck?: boolean }) {
   const reset = await prisma.rolePasswordReset.findFirst({
     where: {
       role,
@@ -81,7 +81,7 @@ export async function changeRolePassword(role: StoreRole, phone: string, code: s
     orderBy: { createdAt: 'desc' },
   })
 
-  if (!reset || !verifySecret(code, reset.codeHash)) {
+  if (!reset || (!options?.skipLocalOtpCheck && !verifySecret(code, reset.codeHash))) {
     return { ok: false as const, error: 'OTP is invalid or expired' }
   }
 
