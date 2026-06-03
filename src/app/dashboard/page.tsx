@@ -28,6 +28,7 @@ import {
   Tooltip,
   type ChartOptions,
 } from 'chart.js'
+import { useI18n } from '@/lib/i18n'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, Tooltip, Legend)
 
@@ -42,12 +43,6 @@ type Analytics = {
 }
 
 type ExportRow = Record<string, string | number>
-
-const money = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'THB',
-  maximumFractionDigits: 0,
-})
 
 const chartInk = '#1f2a33'
 const chartGreen = '#2f7d59'
@@ -89,6 +84,7 @@ const baseChartOptions = {
 } satisfies ChartOptions<'line'>
 
 export default function DashboardPage() {
+  const { language, t } = useI18n()
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -102,7 +98,7 @@ export default function DashboardPage() {
       .then(async (res) => {
         const data = await res.json()
         if (!res.ok) {
-          throw new Error(data.error || 'Unable to load analytics')
+          throw new Error(data.error || t('dashboard.unavailable'))
         }
         if (!active) return
         setAnalytics(data)
@@ -112,7 +108,7 @@ export default function DashboardPage() {
           return
         }
         console.error(error)
-        setError(error instanceof Error ? error.message : 'Unable to load analytics')
+        setError(error instanceof Error ? error.message : t('dashboard.unavailable'))
       })
       .finally(() => {
         window.clearTimeout(timeout)
@@ -128,16 +124,22 @@ export default function DashboardPage() {
         controller.abort('dashboard-unmounted')
       }
     }
-  }, [])
+  }, [t])
+
+  const money = useMemo(() => new Intl.NumberFormat(language === 'th' ? 'th-TH' : 'en-US', {
+    style: 'currency',
+    currency: 'THB',
+    maximumFractionDigits: 0,
+  }), [language])
 
   const trendChart = useMemo(() => {
     const rows = analytics?.revenueTrend ?? []
 
     return {
-      labels: rows.map((item) => new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+      labels: rows.map((item) => new Date(item.date).toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US', { month: 'short', day: 'numeric' })),
       datasets: [
         {
-          label: 'Revenue',
+          label: t('dashboard.todayRevenue'),
           data: rows.map((item) => item.revenue),
           borderColor: chartGreen,
           backgroundColor: 'rgba(47, 125, 89, 0.16)',
@@ -150,7 +152,7 @@ export default function DashboardPage() {
         },
       ],
     }
-  }, [analytics])
+  }, [analytics, language, t])
 
   const hourlyChart = useMemo(() => {
     const rows = analytics?.salesByHour ?? []
@@ -159,7 +161,7 @@ export default function DashboardPage() {
       labels: rows.map((bucket) => `${bucket.hour}:00`),
       datasets: [
         {
-          label: 'Revenue',
+          label: t('dashboard.todayRevenue'),
           data: rows.map((bucket) => bucket.revenue),
           backgroundColor: rows.map((_, index) => (index % 2 === 0 ? chartInk : chartGreen)),
           borderRadius: 8,
@@ -167,7 +169,7 @@ export default function DashboardPage() {
         },
       ],
     }
-  }, [analytics])
+  }, [analytics, t])
 
   const productChart = useMemo(() => {
     const rows = analytics?.topProducts ?? []
@@ -176,7 +178,7 @@ export default function DashboardPage() {
       labels: rows.map((product) => product.name),
       datasets: [
         {
-          label: 'Units sold',
+          label: t('dashboard.unitsSold'),
           data: rows.map((product) => product.quantity),
           backgroundColor: [chartGreen, chartOchre, chartInk, chartClay, '#7a806f'],
           borderColor: '#f7f2e8',
@@ -185,15 +187,15 @@ export default function DashboardPage() {
         },
       ],
     }
-  }, [analytics])
+  }, [analytics, t])
 
   const exportRows = useMemo<ExportRow[]>(() => {
     if (!analytics) return []
 
     return [
-      { section: 'Summary', metric: 'Today Revenue', value: analytics.todayRevenue },
-      { section: 'Summary', metric: 'Transactions', value: analytics.todayTransactions },
-      { section: 'Summary', metric: 'Average Ticket', value: analytics.averageTicket },
+      { section: 'Summary', metric: t('dashboard.todayRevenue'), value: analytics.todayRevenue },
+      { section: 'Summary', metric: t('dashboard.transactions'), value: analytics.todayTransactions },
+      { section: 'Summary', metric: t('dashboard.averageTicket'), value: analytics.averageTicket },
       ...analytics.topProducts.map((product) => ({
         section: 'Top Products',
         metric: product.name,
@@ -219,7 +221,7 @@ export default function DashboardPage() {
         revenue: day.revenue,
       })),
     ]
-  }, [analytics])
+  }, [analytics, t])
 
   const exportCsv = () => {
     if (!exportRows.length) return
@@ -249,7 +251,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="dashboard-shell">
-        <div className="dashboard-loading">Preparing store ledger...</div>
+        <div className="dashboard-loading">{t('dashboard.loading')}</div>
       </div>
     )
   }
@@ -258,8 +260,8 @@ export default function DashboardPage() {
     return (
       <div className="dashboard-shell">
         <div className="dashboard-error">
-          <strong>Dashboard data is unavailable.</strong>
-          <p>{error || 'Please try again after the database is reachable.'}</p>
+          <strong>{t('dashboard.unavailable')}</strong>
+          <p>{error || t('dashboard.retry')}</p>
         </div>
       </div>
     )
@@ -269,9 +271,9 @@ export default function DashboardPage() {
     <div className="dashboard-shell">
       <header className="dashboard-header">
         <div>
-          <p className="dashboard-kicker">Back office snapshot</p>
-          <h1>Store ledger</h1>
-          <p className="dashboard-subtitle">Revenue, product movement, and stock pressure for today.</p>
+          <p className="dashboard-kicker">{t('dashboard.kicker')}</p>
+          <h1>{t('dashboard.title')}</h1>
+          <p className="dashboard-subtitle">{t('dashboard.subtitle')}</p>
         </div>
 
         <div className="export-actions">
@@ -287,33 +289,33 @@ export default function DashboardPage() {
       </header>
 
       <section className="metric-strip">
-        <MetricCard icon={<TrendingUp size={20} />} label="Today revenue" value={money.format(analytics.todayRevenue)} tone="green" />
-        <MetricCard icon={<ReceiptText size={20} />} label="Transactions" value={analytics.todayTransactions.toString()} tone="ink" />
-        <MetricCard icon={<BarChart3 size={20} />} label="Average ticket" value={money.format(analytics.averageTicket)} tone="ochre" />
-        <MetricCard icon={<AlertTriangle size={20} />} label="Low stock" value={analytics.lowStockProducts.length.toString()} tone="clay" />
+        <MetricCard icon={<TrendingUp size={20} />} label={t('dashboard.todayRevenue')} value={money.format(analytics.todayRevenue)} tone="green" />
+        <MetricCard icon={<ReceiptText size={20} />} label={t('dashboard.transactions')} value={analytics.todayTransactions.toString()} tone="ink" />
+        <MetricCard icon={<BarChart3 size={20} />} label={t('dashboard.averageTicket')} value={money.format(analytics.averageTicket)} tone="ochre" />
+        <MetricCard icon={<AlertTriangle size={20} />} label={t('dashboard.lowStock')} value={analytics.lowStockProducts.length.toString()} tone="clay" />
       </section>
 
       <section className="dashboard-grid">
         <div className="panel panel-wide">
-          <PanelHeading icon={<TrendingUp size={18} />} title="Revenue trend" note="Last 14 days" />
+          <PanelHeading icon={<TrendingUp size={18} />} title={t('dashboard.revenueTrend')} note={t('dashboard.last14')} />
           <div className="chart-frame tall">
             <Line data={trendChart} options={baseChartOptions} />
           </div>
         </div>
 
         <div className="panel panel-narrow inventory-panel">
-          <PanelHeading icon={<AlertTriangle size={18} />} title="Stock watch" note="Items needing attention" />
+          <PanelHeading icon={<AlertTriangle size={18} />} title={t('dashboard.stockWatch')} note={t('dashboard.stockNote')} />
           <div className="stock-list">
             {analytics.lowStockProducts.length === 0 ? (
-              <EmptyState text="Inventory looks healthy" />
+              <EmptyState text={t('dashboard.healthy')} />
             ) : (
               analytics.lowStockProducts.map((product) => (
                 <div key={product.id} className="stock-row">
                   <div>
                     <strong>{product.name}</strong>
-                    <span>Threshold {product.lowStockAlert}</span>
+                    <span>{t('dashboard.threshold')} {product.lowStockAlert}</span>
                   </div>
-                  <em className={product.stock === 0 ? 'danger' : ''}>{product.stock} left</em>
+                  <em className={product.stock === 0 ? 'danger' : ''}>{product.stock} {t('dashboard.left')}</em>
                 </div>
               ))
             )}
@@ -321,10 +323,10 @@ export default function DashboardPage() {
         </div>
 
         <div className="panel panel-products">
-          <PanelHeading icon={<Package size={18} />} title="Top sellers" note="Units sold today" />
+          <PanelHeading icon={<Package size={18} />} title={t('dashboard.topSellers')} note={t('dashboard.unitsSold')} />
           <div className="chart-frame donut">
             {analytics.topProducts.length === 0 ? (
-              <EmptyState text="No sales today yet" />
+              <EmptyState text={t('dashboard.noSales')} />
             ) : (
               <Doughnut
                 data={productChart}
@@ -346,10 +348,10 @@ export default function DashboardPage() {
         </div>
 
         <div className="panel panel-hourly">
-          <PanelHeading icon={<BarChart3 size={18} />} title="Sales by hour" note="Counter rhythm" />
+          <PanelHeading icon={<BarChart3 size={18} />} title={t('dashboard.salesByHour')} note={t('dashboard.counterRhythm')} />
           <div className="chart-frame">
             {analytics.salesByHour.length === 0 ? (
-              <EmptyState text="No hourly sales to show" />
+              <EmptyState text={t('dashboard.noHourly')} />
             ) : (
               <Bar data={hourlyChart} options={baseChartOptions as ChartOptions<'bar'>} />
             )}

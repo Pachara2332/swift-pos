@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Lock, ShieldCheck, X } from 'lucide-react'
+import { useI18n } from '@/lib/i18n'
 
 const roles = ['Admin', 'Manager', 'Cashier'] as const
 type Role = (typeof roles)[number]
 
 export default function RoleSwitcher() {
+  const { t } = useI18n()
   const [role, setRole] = useState<Role>(() => {
     if (typeof window === 'undefined') return 'Admin'
     const stored = window.localStorage.getItem('swift-pos-role')
@@ -69,7 +71,7 @@ export default function RoleSwitcher() {
     <div className="role-switcher">
       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
         <ShieldCheck size={14} />
-        Active Role
+        {t('role.active')}
       </label>
       <select
         value={role}
@@ -99,8 +101,8 @@ export default function RoleSwitcher() {
                   <Lock size={18} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '1rem', fontWeight: 800 }}>Switch to {pendingRole}</h2>
-                  <p style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>Enter the role password</p>
+                  <h2 style={{ fontSize: '1rem', fontWeight: 800 }}>{t('role.switchTo')} {pendingRole}</h2>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>{t('role.enterPassword')}</p>
                 </div>
               </div>
               <button type="button" onClick={closeDialog} aria-label="Close role password dialog" style={{ color: 'var(--muted)' }}>
@@ -113,14 +115,14 @@ export default function RoleSwitcher() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoFocus
-              placeholder="Password"
+              placeholder={t('role.passwordPlaceholder')}
               style={{ width: '100%' }}
             />
             {error && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.7rem' }}>{error}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '1rem' }}>
-              <button type="button" className="btn btn-quiet" onClick={closeDialog}>Cancel</button>
+              <button type="button" className="btn btn-quiet" onClick={closeDialog}>{t('role.cancel')}</button>
               <button type="submit" className="btn btn-primary" disabled={loading || password.length === 0}>
-                {loading ? 'Checking...' : 'Unlock'}
+                {loading ? t('role.checking') : t('role.unlock')}
               </button>
             </div>
           </form>

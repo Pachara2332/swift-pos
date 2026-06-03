@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { useRouter } from 'next/navigation';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { Camera, Search, ShoppingBag, Trash2, CreditCard, ScanLine, Plus, Minus, X, Printer, Radio } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 type CartItem = {
   id: string;
@@ -63,6 +64,7 @@ function escapeReceiptText(value: string) {
 }
 
 export default function POSPage() {
+  const { t } = useI18n();
   const [barcodeInput, setBarcodeInput] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCamera, setShowCamera] = useState(false);
@@ -139,7 +141,7 @@ export default function POSPage() {
             quantity: 1
           }];
         });
-        setNotification({ type: 'success', message: `✓ ${data.product.name} added to cart` });
+        setNotification({ type: 'success', message: `${data.product.name} ${t('pos.added')}` });
         setBarcodeInput('');
         if (showCamera) setShowCamera(false);
       } else {
@@ -148,19 +150,19 @@ export default function POSPage() {
           params.append('name', data.product.name);
           params.append('brand', data.product.brand);
           params.append('imageUrl', data.product.imageUrl);
-          setNotification({ type: 'info', message: `Product found online — redirecting to add...` });
+          setNotification({ type: 'info', message: t('pos.externalFound') });
         } else {
-          setNotification({ type: 'info', message: `Product not found — redirecting to add...` });
+          setNotification({ type: 'info', message: t('pos.notFound') });
         }
         setTimeout(() => router.push(`/products/add?${params.toString()}`), 800);
       }
     } catch (error) {
       console.error('Scan error:', error);
-      setNotification({ type: 'error', message: 'Error connecting to server' });
+      setNotification({ type: 'error', message: t('pos.serverError') });
     } finally {
       setLoading(false);
     }
-  }, [router, showCamera]);
+  }, [router, showCamera, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && barcodeInput) {
@@ -240,13 +242,13 @@ export default function POSPage() {
           change: 0,
           createdAt: sale.createdAt ?? new Date().toISOString(),
         });
-        setNotification({ type: 'success', message: `Sale completed! ฿${total.toFixed(2)}` });
+        setNotification({ type: 'success', message: `${t('pos.saleCompleted')}! THB ${total.toFixed(2)}` });
         setCart([]);
       } else {
-        setNotification({ type: 'error', message: 'Checkout failed' });
+        setNotification({ type: 'error', message: t('pos.checkoutFailed') });
       }
     } catch {
-      setNotification({ type: 'error', message: 'Checkout error' });
+      setNotification({ type: 'error', message: t('pos.checkoutError') });
     } finally {
       setLoading(false);
     }
@@ -339,14 +341,14 @@ export default function POSPage() {
       {/* Left: Scanner */}
       <div className="pos-scanner-column">
         <div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>Point of Sale</h2>
-          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Scan or type a barcode to start selling</p>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>{t('pos.title')}</h2>
+          <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>{t('pos.subtitle')}</p>
         </div>
 
         <div className="card" style={{ animation: 'fadeIn 0.3s ease-out' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--primary)', fontWeight: 600 }}>
             <ScanLine size={18} />
-            <span>Barcode Scanner</span>
+            <span>{t('pos.scanner')}</span>
           </div>
           
           <div className="scanner-controls">
@@ -356,7 +358,7 @@ export default function POSPage() {
                 ref={inputRef}
                 type="text" 
                 className="input-field" 
-                placeholder="Scan barcode or type and press Enter..." 
+                placeholder={t('pos.placeholder')}
                 style={{ width: '100%', fontSize: '1.1rem', padding: '0.875rem 0.875rem 0.875rem 2.75rem' }}
                 value={barcodeInput}
                 onChange={e => setBarcodeInput(e.target.value)}
@@ -371,14 +373,14 @@ export default function POSPage() {
               style={{ whiteSpace: 'nowrap' }}
             >
               <Camera size={18} />
-              {showCamera ? 'Close' : 'Camera'}
+              {showCamera ? t('pos.close') : t('pos.camera')}
             </button>
           </div>
           
           {loading && (
             <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
               <div style={{ width: '14px', height: '14px', border: '2px solid var(--border)', borderTop: '2px solid var(--primary)', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }}></div>
-              Processing...
+              {t('pos.processing')}
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
@@ -396,12 +398,12 @@ export default function POSPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1rem' }}>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <ShoppingBag size={18} />
-            Current Sale
+            {t('pos.currentSale')}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <span className={`live-pill live-pill-${liveStatus}`}>
               <Radio size={13} />
-              {liveStatus === 'live' ? 'Live sale' : liveStatus === 'connecting' ? 'Connecting' : 'Offline'}
+              {liveStatus === 'live' ? t('pos.liveSale') : liveStatus === 'connecting' ? t('pos.connecting') : t('pos.offline')}
             </span>
             {itemCount > 0 && (
               <span style={{
@@ -411,7 +413,7 @@ export default function POSPage() {
                 padding: '0.125rem 0.625rem',
                 fontSize: '0.75rem',
                 fontWeight: 700,
-              }}>{itemCount} items</span>
+              }}>{itemCount} {t('pos.items')}</span>
             )}
           </div>
         </div>
@@ -419,7 +421,7 @@ export default function POSPage() {
         {remoteSale && remoteSale.itemCount > 0 && (
           <div className="live-sale-preview">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
-              <strong>Live current sale</strong>
+              <strong>{t('pos.remoteSale')}</strong>
               <span>{remoteSale.itemCount} items | à¸¿{remoteSale.total.toFixed(2)}</span>
             </div>
             <p>{remoteSale.items.slice(0, 2).map(item => `${item.name} x${item.quantity}`).join(', ')}</p>
@@ -430,8 +432,8 @@ export default function POSPage() {
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', color: 'var(--muted)', marginTop: '3rem' }}>
               <ShoppingBag size={48} style={{ opacity: 0.2, margin: '0 auto 1rem' }} />
-              <p style={{ fontWeight: 500 }}>No items yet</p>
-              <p style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>Scan a barcode to add products</p>
+              <p style={{ fontWeight: 500 }}>{t('pos.noItems')}</p>
+              <p style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>{t('pos.noItemsHint')}</p>
             </div>
           ) : (
             cart.map(item => (
@@ -460,7 +462,7 @@ export default function POSPage() {
 
         <div style={{ marginTop: 'auto', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
           <div className="pos-total-row">
-            <span>Total</span>
+            <span>{t('pos.total')}</span>
             <span style={{ color: 'var(--primary)' }}>฿{total.toFixed(2)}</span>
           </div>
           {lastReceipt && (
@@ -470,7 +472,7 @@ export default function POSPage() {
               onClick={printReceipt}
             >
               <Printer size={18} />
-              Print Last Receipt
+              {t('pos.printLastReceipt')}
             </button>
           )}
           <button 
@@ -480,7 +482,7 @@ export default function POSPage() {
             onClick={handleCheckout}
           >
             <CreditCard size={18} />
-            Complete Checkout
+            {t('pos.checkout')}
           </button>
         </div>
       </div>

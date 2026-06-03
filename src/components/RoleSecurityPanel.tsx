@@ -4,10 +4,12 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { KeyRound, MessageSquareText, Save } from 'lucide-react'
 import { storeRoles, type StoreRole } from '@/lib/role-constants'
+import { useI18n } from '@/lib/i18n'
 
 type Step = 'request' | 'confirm'
 
 export default function RoleSecurityPanel() {
+  const { t } = useI18n()
   const [role, setRole] = useState<StoreRole>('Admin')
   const [phone, setPhone] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -33,13 +35,13 @@ export default function RoleSecurityPanel() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Unable to send OTP')
+        throw new Error(data.error || t('role.sendOtp'))
       }
 
       setStep('confirm')
-      setMessage('OTP sent. Check SMS or the development server console.')
+      setMessage(t('role.otpSent'))
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to send OTP')
+      setError(error instanceof Error ? error.message : t('role.sendOtp'))
     } finally {
       setLoading(false)
     }
@@ -60,16 +62,16 @@ export default function RoleSecurityPanel() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Unable to change password')
+        throw new Error(data.error || t('role.changePassword'))
       }
 
       setCurrentPassword('')
       setOtp('')
       setNewPassword('')
       setStep('request')
-      setMessage(`${role} password updated`)
+      setMessage(`${role} ${t('role.passwordUpdated')}`)
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Unable to change password')
+      setError(error instanceof Error ? error.message : t('role.changePassword'))
     } finally {
       setLoading(false)
     }
@@ -82,15 +84,15 @@ export default function RoleSecurityPanel() {
           <KeyRound size={20} />
         </div>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Role Passwords</h2>
-          <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>Use SMS OTP before changing each role password</p>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{t('role.passwords')}</h2>
+          <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>{t('role.passwordsNote')}</p>
         </div>
       </div>
 
       <form onSubmit={step === 'request' ? requestOtp : confirmPassword} style={{ display: 'grid', gap: '1rem' }}>
         <div className="roles-security-grid">
           <label className="input-group" style={{ marginBottom: 0 }}>
-            <span>Role</span>
+            <span>{t('role.role')}</span>
             <select className="input-field" value={role} onChange={(event) => setRole(event.target.value as StoreRole)}>
               {storeRoles.map((item) => (
                 <option key={item} value={item}>{item}</option>
@@ -98,14 +100,14 @@ export default function RoleSecurityPanel() {
             </select>
           </label>
           <label className="input-group" style={{ marginBottom: 0 }}>
-            <span>Phone</span>
+            <span>{t('role.phone')}</span>
             <input className="input-field" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+66123456789" />
           </label>
         </div>
 
         {step === 'request' ? (
           <label className="input-group" style={{ marginBottom: 0 }}>
-            <span>Current Password</span>
+            <span>{t('role.currentPassword')}</span>
             <input className="input-field" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
           </label>
         ) : (
@@ -115,7 +117,7 @@ export default function RoleSecurityPanel() {
               <input className="input-field" inputMode="numeric" value={otp} onChange={(event) => setOtp(event.target.value)} />
             </label>
             <label className="input-group" style={{ marginBottom: 0 }}>
-              <span>New Password</span>
+              <span>{t('role.newPassword')}</span>
               <input className="input-field" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
             </label>
           </div>
@@ -126,11 +128,11 @@ export default function RoleSecurityPanel() {
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.7rem', flexWrap: 'wrap' }}>
           {step === 'confirm' && (
-            <button type="button" className="btn btn-quiet" onClick={() => setStep('request')}>Back</button>
+            <button type="button" className="btn btn-quiet" onClick={() => setStep('request')}>{t('role.back')}</button>
           )}
           <button className="btn btn-primary" disabled={loading} type="submit">
             {step === 'request' ? <MessageSquareText size={16} /> : <Save size={16} />}
-            {loading ? 'Working...' : step === 'request' ? 'Send OTP' : 'Change Password'}
+            {loading ? t('role.working') : step === 'request' ? t('role.sendOtp') : t('role.changePassword')}
           </button>
         </div>
       </form>

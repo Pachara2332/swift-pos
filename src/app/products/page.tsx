@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Package, Search, AlertTriangle, Radio } from 'lucide-react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
 
 type Product = {
   id: string;
@@ -15,6 +16,7 @@ type Product = {
 };
 
 export default function ProductsPage() {
+  const { t } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -60,23 +62,23 @@ export default function ProductsPage() {
     <div>
       <div className="page-toolbar">
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>Inventory</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.25rem' }}>{t('inventory.title')}</h1>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-            {products.length} products total
+            {products.length} {t('inventory.productsTotal')}
             {lowStockCount > 0 && (
               <span style={{ color: 'var(--danger)', marginLeft: '1rem', fontWeight: 500 }}>
                 <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.25rem' }} />
-                {lowStockCount} low stock
+                {lowStockCount} {t('inventory.lowStock')}
               </span>
             )}
             <span className={`live-pill live-pill-${liveStatus}`}>
               <Radio size={13} />
-              {liveStatus === 'live' ? 'Live stock' : liveStatus === 'connecting' ? 'Connecting' : 'Offline'}
+              {liveStatus === 'live' ? t('inventory.liveStock') : liveStatus === 'connecting' ? t('pos.connecting') : t('pos.offline')}
             </span>
           </p>
         </div>
         <Link href="/products/add" className="btn btn-primary">
-          Add Product
+          {t('nav.addProduct')}
         </Link>
       </div>
 
@@ -85,7 +87,7 @@ export default function ProductsPage() {
           <Search size={18} color="var(--muted)" />
           <input 
             type="text" 
-            placeholder="Search by name, brand, or barcode..." 
+            placeholder={t('inventory.search')}
             style={{ flex: 1, border: 'none', background: 'none', outline: 'none', padding: '0.5rem', color: 'var(--foreground)', fontSize: '0.95rem' }}
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -98,18 +100,18 @@ export default function ProductsPage() {
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
             <div style={{ width: '24px', height: '24px', border: '3px solid var(--border)', borderTop: '3px solid var(--primary)', borderRadius: '50%', animation: 'spin 0.6s linear infinite', margin: '0 auto 1rem' }}></div>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            Loading inventory...
+            {t('inventory.loading')}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Barcode</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Product</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Brand</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Price</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Stock</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('inventory.barcode')}</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('inventory.product')}</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('inventory.brand')}</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>{t('inventory.price')}</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>{t('inventory.stock')}</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 600, color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('inventory.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -122,11 +124,11 @@ export default function ProductsPage() {
                   <td style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 600 }}>{product.stock}</td>
                   <td style={{ padding: '1rem 1.25rem' }}>
                     {product.stock === 0 ? (
-                      <span className="badge badge-danger">Out of Stock</span>
+                      <span className="badge badge-danger">{t('inventory.out')}</span>
                     ) : product.stock <= product.lowStockAlert ? (
-                      <span className="badge badge-warning">Low Stock</span>
+                      <span className="badge badge-warning">{t('inventory.low')}</span>
                     ) : (
-                      <span className="badge badge-success">In Stock</span>
+                      <span className="badge badge-success">{t('inventory.inStock')}</span>
                     )}
                   </td>
                 </tr>
@@ -135,7 +137,7 @@ export default function ProductsPage() {
                 <tr>
                   <td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
                     <Package size={40} style={{ opacity: 0.2, margin: '0 auto 0.5rem', display: 'block' }} />
-                    No products found
+                    {t('inventory.noProducts')}
                   </td>
                 </tr>
               )}

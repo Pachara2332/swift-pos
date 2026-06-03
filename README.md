@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Swift POS
+
+Swift POS คือระบบขายหน้าร้านบน Next.js สำหรับร้านค้าขนาดเล็กถึงกลาง รองรับการขายด้วยบาร์โค้ด จัดการสินค้า สต็อกแบบ real time แดชบอร์ดวิเคราะห์ยอดขาย และระบบบทบาทผู้ใช้พร้อม OTP ผ่าน SMS
+
+## Features
+
+- Point of Sale สำหรับสแกนหรือพิมพ์บาร์โค้ดแล้วเพิ่มสินค้าเข้ารายการขาย
+- Inventory สำหรับดูสินค้า ราคา สต็อก และสถานะใกล้หมด
+- Add Product พร้อมรองรับข้อมูลตั้งต้นจาก Open Food Facts เมื่อสแกนบาร์โค้ดที่ยังไม่มีในระบบ
+- Dashboard แสดงรายได้วันนี้ รายการขาย สินค้าขายดี สต็อกต่ำ และยอดขายรายชั่วโมง
+- Role access สำหรับ Admin, Manager และ Cashier
+- เปลี่ยน role ต้องใส่รหัสทุกครั้ง
+- เปลี่ยนรหัส role ด้วย OTP ผ่าน Twilio Verify SMS
+- Realtime stream/webhook สำหรับอัปเดต stock และ current sale
+- ระบบ 2 ภาษา ไทย/อังกฤษ โดยค่าเริ่มต้นเป็นภาษาไทย
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- Prisma 7
+- PostgreSQL/Neon
+- Chart.js
+- Twilio Verify
 
 ## Getting Started
 
-First, run the development server:
+ติดตั้ง dependencies:
+
+```bash
+npm install
+```
+
+สร้าง Prisma client:
+
+```bash
+npx prisma generate
+```
+
+Sync schema เข้าฐานข้อมูล:
+
+```bash
+npx prisma db push
+```
+
+รัน development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+เปิดใช้งานที่:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+สร้างไฟล์ `.env` แล้วกำหนดค่าหลัก:
 
-To learn more about Next.js, take a look at the following resources:
+```env
+DATABASE_URL="postgresql://..."
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+TWILIO_ACCOUNT_SID="ACxxxxxxxx"
+TWILIO_AUTH_TOKEN="xxxxxxxx"
+TWILIO_VERIFY_SERVICE_SID="VAxxxxxxxx"
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+SWIFT_POS_DEFAULT_ROLE_PASSWORD="123456"
+REALTIME_WEBHOOK_TOKEN="optional-webhook-token"
+```
 
-## Deploy on Vercel
+หมายเหตุ:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `SWIFT_POS_DEFAULT_ROLE_PASSWORD` คือรหัสเริ่มต้นของ role ที่ยังไม่เคยถูกสร้างในฐานข้อมูล
+- Twilio ต้องใช้เบอร์รูปแบบ E.164 เช่น `+66990094187`; ระบบจะแปลงเบอร์ไทยที่ขึ้นต้น `0` ให้อัตโนมัติ
+- ถ้าไม่ได้ตั้งค่า Twilio ครบ ระบบจะ fallback ไป mock SMS สำหรับทดสอบ local
+- `REALTIME_WEBHOOK_TOKEN` ใช้ป้องกัน endpoint `/api/webhooks/realtime` สำหรับ event จากระบบภายนอก
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Role Password Flow
+
+1. ผู้ใช้เลือก role ใหม่จาก sidebar
+2. ระบบเปิด dialog ให้กรอกรหัสของ role นั้น
+3. ถ้ารหัสถูกต้อง ระบบจึงเปลี่ยน active role
+4. หากต้องการเปลี่ยนรหัส role ให้ไปหน้า Roles
+5. กรอก role, เบอร์โทร และรหัสปัจจุบัน
+6. ระบบส่ง OTP ผ่าน Twilio Verify
+7. กรอก OTP และรหัสใหม่เพื่อบันทึก
+
+## Realtime
+
+ระบบ realtime ใช้ Server-Sent Events:
+
+- `GET /api/realtime` สำหรับ subscribe event
+- `POST /api/realtime/current-sale` สำหรับส่ง snapshot รายการขายปัจจุบันจากหน้า POS
+- `POST /api/webhooks/realtime` สำหรับรับ event จากระบบภายนอก
+
+Event ที่รองรับ:
+
+- `product.changed`
+- `sale.completed`
+- `current-sale.updated`
+
+หน้า Inventory จะ refresh stock เมื่อสินค้าเปลี่ยนหรือมีการ checkout ส่วนหน้า POS จะ broadcast current sale เพื่อให้แท็บหรือจออื่นเห็นรายการขายล่าสุด
+
+## Scripts
+
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+```
+
+## Default Language
+
+ภาษาเริ่มต้นของระบบคือภาษาไทย ผู้ใช้สามารถเปลี่ยนเป็นอังกฤษจาก sidebar ได้ และระบบจะจำภาษาที่เลือกไว้ใน browser
