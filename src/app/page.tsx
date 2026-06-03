@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { useRouter } from 'next/navigation';
 import BarcodeScanner from '@/components/BarcodeScanner';
-import { Camera, Search, ShoppingBag, Trash2, CreditCard, ScanLine, Plus, Minus, X, Printer } from 'lucide-react';
+import { Camera, Search, ShoppingBag, Trash2, CreditCard, ScanLine, Plus, Minus, X, Printer, Radio } from 'lucide-react';
 
 type CartItem = {
   id: string;
@@ -28,6 +28,31 @@ type LastReceipt = {
   createdAt: string;
 };
 
+type ProductChangedEvent = {
+  type: 'product.changed';
+  product: {
+    id: string;
+    barcode: string;
+    name: string;
+    salePrice: number;
+  };
+};
+
+type CurrentSaleEvent = {
+  type: 'current-sale.updated';
+  sessionId: string;
+  items: {
+    productId: string;
+    barcode: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
+  itemCount: number;
+  total: number;
+  createdAt: string;
+};
+
 function escapeReceiptText(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -44,8 +69,11 @@ export default function POSPage() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null);
   const [lastReceipt, setLastReceipt] = useState<LastReceipt | null>(null);
+  const [liveStatus, setLiveStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
+  const [remoteSale, setRemoteSale] = useState<CurrentSaleEvent | null>(null);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const sessionId = `pos-${useId()}`;
 
   useEffect(() => {
     if (!showCamera) {
@@ -60,6 +88,34 @@ export default function POSPage() {
       return () => clearTimeout(t);
     }
   }, [notification]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const events = new EventSource('/api/realtime');
+
+    events.addEventListener('connected', () => setLiveStatus('live'));
+    events.addEventListener('product.changed', (event) => {
+      const data = JSON.parse(event.data) as ProductChangedEvent;
+      setCart(prev => prev.map(item => {
+        if (item.productId !== data.product.id && item.barcode !== data.product.barcode) return item;
+        return {
+          ...item,
+          name: data.product.name,
+          price: data.product.salePrice,
+        };
+      }));
+    });
+    events.addEventListener('current-sale.updated', (event) => {
+      const data = JSON.parse(event.data) as CurrentSaleEvent;
+      if (data.sessionId !== sessionId) {
+        setRemoteSale(data);
+      }
+    });
+    events.onerror = () => setLiveStatus('offline');
+
+    return () => events.close();
+  }, [sessionId]);
 
   const handleScan = useCallback(async (barcode: string) => {
     if (!barcode.trim()) return;
@@ -124,6 +180,40 @@ export default function POSPage() {
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch('/api/realtime/current-sale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'current-sale.updated',
+          sessionId,
+          items: cart.map(item => ({
+            productId: item.productId,
+            barcode: item.barcode,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+          itemCount,
+          total,
+          createdAt: new Date().toISOString(),
+        }),
+        signal: controller.signal,
+      }).catch(() => {
+        setLiveStatus('offline');
+      });
+    }, 200);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [cart, itemCount, sessionId, total]);
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -308,17 +398,33 @@ export default function POSPage() {
             <ShoppingBag size={18} />
             Current Sale
           </h2>
-          {itemCount > 0 && (
-            <span style={{
-              background: 'var(--primary)',
-              color: 'white',
-              borderRadius: '9999px',
-              padding: '0.125rem 0.625rem',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-            }}>{itemCount} items</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <span className={`live-pill live-pill-${liveStatus}`}>
+              <Radio size={13} />
+              {liveStatus === 'live' ? 'Live sale' : liveStatus === 'connecting' ? 'Connecting' : 'Offline'}
+            </span>
+            {itemCount > 0 && (
+              <span style={{
+                background: 'var(--primary)',
+                color: 'white',
+                borderRadius: '9999px',
+                padding: '0.125rem 0.625rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+              }}>{itemCount} items</span>
+            )}
+          </div>
         </div>
+
+        {remoteSale && remoteSale.itemCount > 0 && (
+          <div className="live-sale-preview">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
+              <strong>Live current sale</strong>
+              <span>{remoteSale.itemCount} items | à¸¿{remoteSale.total.toFixed(2)}</span>
+            </div>
+            <p>{remoteSale.items.slice(0, 2).map(item => `${item.name} x${item.quantity}`).join(', ')}</p>
+          </div>
+        )}
         
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', paddingRight: '0.25rem' }}>
           {cart.length === 0 ? (

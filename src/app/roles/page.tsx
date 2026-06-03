@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react'
+import RoleSecurityPanel from '@/components/RoleSecurityPanel'
 
 const roles = [
   {
@@ -49,6 +50,8 @@ export default function RolesPage() {
           </section>
         ))}
       </div>
+
+      <RoleSecurityPanel />
     </div>
   )
 }

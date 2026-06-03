@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { publishRealtime } from '@/lib/realtime'
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +11,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Barcode and name are required' }, { status: 400 })
     }
 
+    const existing = await prisma.product.findUnique({ where: { barcode } })
     const product = await prisma.product.upsert({
       where: { barcode },
       update: {
@@ -33,6 +35,13 @@ export async function POST(request: Request) {
         stock: Number(stock) || 0,
         lowStockAlert: Number(lowStockAlert) || 5,
       },
+    })
+
+    publishRealtime({
+      type: 'product.changed',
+      action: existing ? 'updated' : 'created',
+      product,
+      createdAt: new Date().toISOString(),
     })
 
     return NextResponse.json(product, { status: 201 })

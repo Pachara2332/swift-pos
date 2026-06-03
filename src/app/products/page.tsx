@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Package, Search, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Package, Search, AlertTriangle, Radio } from 'lucide-react';
 import Link from 'next/link';
 
 type Product = {
@@ -18,12 +18,13 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [liveStatus, setLiveStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
 
-  useEffect(() => {
+  const loadProducts = useCallback(() => {
     fetch('/api/products')
       .then(res => res.json())
       .then(data => {
-        setProducts(data);
+        setProducts(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(err => {
@@ -31,6 +32,21 @@ export default function ProductsPage() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
+  useEffect(() => {
+    const events = new EventSource('/api/realtime');
+
+    events.addEventListener('connected', () => setLiveStatus('live'));
+    events.addEventListener('product.changed', () => loadProducts());
+    events.addEventListener('sale.completed', () => loadProducts());
+    events.onerror = () => setLiveStatus('offline');
+
+    return () => events.close();
+  }, [loadProducts]);
 
   const filtered = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -53,6 +69,10 @@ export default function ProductsPage() {
                 {lowStockCount} low stock
               </span>
             )}
+            <span className={`live-pill live-pill-${liveStatus}`}>
+              <Radio size={13} />
+              {liveStatus === 'live' ? 'Live stock' : liveStatus === 'connecting' ? 'Connecting' : 'Offline'}
+            </span>
           </p>
         </div>
         <Link href="/products/add" className="btn btn-primary">

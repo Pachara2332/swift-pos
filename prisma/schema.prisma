@@ -47,3 +47,24 @@ model SaleItem {
   sale      Sale     @relation(fields: [saleId], references: [id])
   product   Product  @relation(fields: [productId], references: [id])
 }
+
+model RoleCredential {
+  id           String   @id @default(cuid())
+  role         String   @unique
+  passwordHash String
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model RolePasswordReset {
+  id         String    @id @default(cuid())
+  role       String
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([role, phone, expiresAt])
+}

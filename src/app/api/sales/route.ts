@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { publishRealtime } from '@/lib/realtime'
 
 type SaleRequestItem = {
   productId: string
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
       }
 
       return sale
+    })
+
+    publishRealtime({
+      type: 'sale.completed',
+      saleId: result.id,
+      productIds: items.map((item) => item.productId),
+      createdAt: new Date().toISOString(),
     })
 
     return NextResponse.json(result, { status: 201 })

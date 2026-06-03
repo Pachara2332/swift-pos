@@ -361,6 +361,27 @@ table tbody tr:hover {
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.role-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(31, 42, 51, 0.58);
+}
+
+.role-dialog {
+  width: min(100%, 420px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow-lg);
+  padding: 1.25rem;
+}
+
 .pos-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 380px);
@@ -406,6 +427,55 @@ table tbody tr:hover {
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.4;
+  vertical-align: middle;
+  margin-left: 0.75rem;
+}
+
+.live-pill-live {
+  background: var(--success-light);
+  border-color: rgba(47, 125, 89, 0.24);
+  color: var(--success);
+}
+
+.live-pill-connecting {
+  background: var(--warning-light);
+  border-color: rgba(197, 138, 43, 0.26);
+  color: var(--warning);
+}
+
+.live-pill-offline {
+  background: var(--danger-light);
+  border-color: rgba(184, 70, 47, 0.26);
+  color: var(--danger);
+}
+
+.live-sale-preview {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  padding: 0.75rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.82rem;
+}
+
+.live-sale-preview p {
+  color: var(--muted);
+  margin-top: 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pos-total-row {
@@ -455,6 +525,12 @@ table tbody tr:hover {
 .roles-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.roles-security-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -869,6 +945,7 @@ table tbody tr:hover {
 
   .metric-strip,
   .roles-grid,
+  .roles-security-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }
