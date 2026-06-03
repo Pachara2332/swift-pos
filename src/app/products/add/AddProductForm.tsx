@@ -6,6 +6,8 @@ import { Save, ArrowLeft, PackagePlus } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 
+const categorySuggestions = ['เนื้อวัว', 'เนื้อหมู', 'เนื้อไก่'];
+
 export default function AddProductForm() {
   const { t } = useI18n();
   const router = useRouter();
@@ -83,7 +85,12 @@ export default function AddProductForm() {
 
           <div className="input-group">
             <label style={{ fontWeight: 500 }}>{t('product.category')}</label>
-            <input type="text" name="category" value={formData.category} onChange={handleChange} className="input-field" placeholder="Snacks" />
+            <input type="text" name="category" value={formData.category} onChange={handleChange} className="input-field" placeholder={t('product.category')} list="product-category-suggestions" />
+            <datalist id="product-category-suggestions">
+              {categorySuggestions.map(category => (
+                <option key={category} value={category} />
+              ))}
+            </datalist>
           </div>
 
           <div className="input-group">

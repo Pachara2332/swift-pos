@@ -4,21 +4,16 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Lock, ShieldCheck, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { storeRoles, type StoreRole } from '@/lib/role-constants'
 
-const roles = ['Admin', 'Manager', 'Cashier'] as const
-type Role = (typeof roles)[number]
+type RoleSwitcherProps = {
+  role: StoreRole
+  onRoleChange: (role: StoreRole) => void
+}
 
-export default function RoleSwitcher() {
+export default function RoleSwitcher({ role, onRoleChange }: RoleSwitcherProps) {
   const { t } = useI18n()
-  const [role, setRole] = useState<Role>(() => {
-    if (typeof window === 'undefined') return 'Admin'
-    const stored = window.localStorage.getItem('swift-pos-role')
-    if (stored === 'Admin' || stored === 'Manager' || stored === 'Cashier') {
-      return stored
-    }
-    return 'Admin'
-  })
-  const [pendingRole, setPendingRole] = useState<Role | null>(null)
+  const [pendingRole, setPendingRole] = useState<StoreRole | null>(null)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,8 +52,7 @@ export default function RoleSwitcher() {
         throw new Error(data.error || 'Unable to change role')
       }
 
-      setRole(pendingRole)
-      window.localStorage.setItem('swift-pos-role', pendingRole)
+      onRoleChange(pendingRole)
       closeDialog()
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to change role')
@@ -86,7 +80,7 @@ export default function RoleSwitcher() {
           outline: 'none',
         }}
       >
-        {roles.map((item) => (
+        {storeRoles.map((item) => (
           <option key={item} value={item} style={{ color: '#111827' }}>
             {item}
           </option>

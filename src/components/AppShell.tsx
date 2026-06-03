@@ -1,9 +1,84 @@
 'use client'
 
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { BarChart3, Languages, List, PackagePlus, ShieldCheck, ShoppingCart, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Barcode, Languages, List, PackagePlus, ShieldCheck, ShoppingCart, Zap } from 'lucide-react'
 import RoleSwitcher from '@/components/RoleSwitcher'
 import { I18nProvider, useI18n, type Language } from '@/lib/i18n'
+import { isStoreRole, type StoreRole } from '@/lib/role-constants'
+import { ActiveRoleProvider } from '@/lib/role-context'
+
+type NavItem = {
+  href: string
+  labelKey: string
+  icon: React.ReactNode
+  roles: StoreRole[]
+}
+
+const navItems: NavItem[] = [
+  {
+    href: '/',
+    labelKey: 'nav.pos',
+    icon: <ShoppingCart size={18} />,
+    roles: ['Admin', 'Manager', 'Cashier'],
+  },
+  {
+    href: '/products',
+    labelKey: 'nav.inventory',
+    icon: <List size={18} />,
+    roles: ['Admin', 'Manager', 'Cashier'],
+  },
+  {
+    href: '/dashboard',
+    labelKey: 'permission.openDashboard',
+    icon: <BarChart3 size={18} />,
+    roles: ['Admin', 'Manager'],
+  },
+  {
+    href: '/products?filter=low-stock',
+    labelKey: 'permission.reviewLowStock',
+    icon: <AlertTriangle size={18} />,
+    roles: ['Admin', 'Manager'],
+  },
+  {
+    href: '/barcodes',
+    labelKey: 'nav.barcodes',
+    icon: <Barcode size={18} />,
+    roles: ['Admin', 'Manager'],
+  },
+  {
+    href: '/products/add',
+    labelKey: 'nav.addProduct',
+    icon: <PackagePlus size={18} />,
+    roles: ['Admin'],
+  },
+  {
+    href: '/roles',
+    labelKey: 'nav.roles',
+    icon: <ShieldCheck size={18} />,
+    roles: ['Admin'],
+  },
+]
+
+const roleStorageKey = 'swift-pos-role'
+const roleChangeEvent = 'swift-pos-role-change'
+
+function getStoredRole(): StoreRole {
+  if (typeof window === 'undefined') return 'Admin'
+
+  const stored = window.localStorage.getItem(roleStorageKey)
+  return isStoreRole(stored) ? stored : 'Admin'
+}
+
+function subscribeToRole(callback: () => void) {
+  window.addEventListener('storage', callback)
+  window.addEventListener(roleChangeEvent, callback)
+
+  return () => {
+    window.removeEventListener('storage', callback)
+    window.removeEventListener(roleChangeEvent, callback)
+  }
+}
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -15,9 +90,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
 function AppShellContent({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useI18n()
+  const role = useSyncExternalStore<StoreRole>(subscribeToRole, getStoredRole, () => 'Admin')
+  const setRole = useCallback((nextRole: StoreRole) => {
+    window.localStorage.setItem(roleStorageKey, nextRole)
+    window.dispatchEvent(new Event(roleChangeEvent))
+  }, [])
+  const visibleNavItems = useMemo(() => navItems.filter((item) => item.roles.includes(role)), [role])
 
   return (
-    <div className="app-shell">
+    <ActiveRoleProvider role={role} setRole={setRole}>
+      <div className="app-shell">
       <aside className="app-sidebar">
         <div className="app-brand">
           <div style={{
@@ -52,40 +134,23 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         <p className="nav-section-label">{t('nav.menu')}</p>
 
         <nav className="app-nav">
-          <Link href="/" className="nav-link">
-            <ShoppingCart size={18} />
-            {t('nav.pos')}
-          </Link>
-
-          <Link href="/dashboard" className="nav-link">
-            <BarChart3 size={18} />
-            {t('nav.dashboard')}
-          </Link>
-
-          <Link href="/products/add" className="nav-link">
-            <PackagePlus size={18} />
-            {t('nav.addProduct')}
-          </Link>
-
-          <Link href="/products" className="nav-link">
-            <List size={18} />
-            {t('nav.inventory')}
-          </Link>
-
-          <Link href="/roles" className="nav-link">
-            <ShieldCheck size={18} />
-            {t('nav.roles')}
-          </Link>
+          {visibleNavItems.map((item) => (
+            <Link key={item.href} href={item.href} className="nav-link">
+              {item.icon}
+              {t(item.labelKey)}
+            </Link>
+          ))}
         </nav>
 
         <LanguageSwitcher language={language} setLanguage={setLanguage} />
-        <RoleSwitcher />
+        <RoleSwitcher role={role} onRoleChange={setRole} />
       </aside>
 
       <main className="app-main">
         {children}
       </main>
-    </div>
+      </div>
+    </ActiveRoleProvider>
   )
 }
 

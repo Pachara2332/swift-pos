@@ -557,7 +557,132 @@ table tbody tr:hover {
 }
 
 .data-table-card table {
-  min-width: 780px;
+  min-width: 920px;
+}
+
+.inventory-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+}
+
+.inventory-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.375rem 0.75rem;
+}
+
+.inventory-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  padding: 0.5rem;
+  color: var(--foreground);
+  font-size: 0.95rem;
+}
+
+.inventory-category-filter {
+  width: 100%;
+}
+
+.sortable-header {
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sortable-header button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+}
+
+.sortable-header button:hover {
+  color: var(--foreground);
+  background: var(--primary-light);
+}
+
+.sortable-header svg {
+  flex-shrink: 0;
+}
+
+.sortable-header-right button {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.barcode-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.barcode-workspace {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.72fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.barcode-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.barcode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.barcode-preview-panel {
+  display: flex;
+  min-height: 430px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  overflow: auto;
+}
+
+.barcode-product-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.barcode-preview {
+  display: flex;
+  max-width: 100%;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.barcode-preview svg {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 .roles-grid {
@@ -577,7 +702,7 @@ table tbody tr:hover {
   flex-direction: column;
   gap: 1.25rem;
   width: 100%;
-  max-width: 1320px;
+  max-width: none;
   min-width: 0;
 }
 
@@ -622,7 +747,7 @@ table tbody tr:hover {
 
 .metric-strip {
   display: grid;
-  grid-template-columns: 1.1fr 0.85fr 1fr 0.75fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
@@ -635,14 +760,6 @@ table tbody tr:hover {
   align-items: center;
   gap: 0.9rem;
   padding: 1rem;
-}
-
-.metric-card:nth-child(2) {
-  transform: translateY(8px);
-}
-
-.metric-card:nth-child(4) {
-  transform: translateY(-5px);
 }
 
 .metric-icon {
@@ -690,7 +807,7 @@ table tbody tr:hover {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -709,15 +826,6 @@ table tbody tr:hover {
 
 .panel-narrow {
   min-height: 360px;
-  transform: translateY(20px);
-}
-
-.panel-products {
-  transform: translateX(18px);
-}
-
-.panel-hourly {
-  margin-top: -12px;
 }
 
 .panel-heading {
@@ -913,6 +1021,10 @@ table tbody tr:hover {
     min-height: auto;
   }
 
+  .barcode-workspace {
+    grid-template-columns: 1fr;
+  }
+
   .pos-cart {
     position: static;
     height: auto;
@@ -1032,6 +1144,10 @@ table tbody tr:hover {
     border-radius: 0;
   }
 
+  .inventory-filters {
+    grid-template-columns: 1fr;
+  }
+
   .data-table-card table {
     min-width: 0;
   }
@@ -1078,18 +1194,22 @@ table tbody tr:hover {
   }
 
   .data-table-card tbody td:nth-child(3)::before {
-    content: 'Brand';
+    content: 'Category';
   }
 
   .data-table-card tbody td:nth-child(4)::before {
-    content: 'Price';
+    content: 'Brand';
   }
 
   .data-table-card tbody td:nth-child(5)::before {
-    content: 'Stock';
+    content: 'Price';
   }
 
   .data-table-card tbody td:nth-child(6)::before {
+    content: 'Stock';
+  }
+
+  .data-table-card tbody td:nth-child(7)::before {
     content: 'Status';
   }
 
