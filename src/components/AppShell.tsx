@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, BarChart3, Barcode, Languages, List, PackagePlus, ShieldCheck, ShoppingCart, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Barcode, ChevronDown, Languages, List, PackagePlus, Scale, ShieldCheck, ShoppingCart, Users, Zap } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import RoleSwitcher from '@/components/RoleSwitcher'
 import { I18nProvider, useI18n, type Language } from '@/lib/i18n'
 import { isStoreRole, type StoreRole } from '@/lib/role-constants'
@@ -60,6 +61,13 @@ const navItems: NavItem[] = [
   },
 ]
 
+const posSubItems = [
+  { href: '/', labelKey: 'nav.posCounter', icon: <ShoppingCart size={16} /> },
+  { href: '/?tool=weight', labelKey: 'nav.posWeight', icon: <Scale size={16} /> },
+  { href: '/?tool=quick-product', labelKey: 'nav.posQuickProduct', icon: <PackagePlus size={16} /> },
+  { href: '/?tool=debt', labelKey: 'nav.posDebt', icon: <Users size={16} /> },
+]
+
 const roleStorageKey = 'swift-pos-role'
 const roleChangeEvent = 'swift-pos-role-change'
 
@@ -90,7 +98,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
 function AppShellContent({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useI18n()
+  const pathname = usePathname()
   const role = useSyncExternalStore<StoreRole>(subscribeToRole, getStoredRole, () => 'Admin')
+  const [posMenuOpen, setPosMenuOpen] = useState(() => pathname === '/')
   const setRole = useCallback((nextRole: StoreRole) => {
     window.localStorage.setItem(roleStorageKey, nextRole)
     window.dispatchEvent(new Event(roleChangeEvent))
@@ -134,12 +144,45 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         <p className="nav-section-label">{t('nav.menu')}</p>
 
         <nav className="app-nav">
-          {visibleNavItems.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link">
-              {item.icon}
-              {t(item.labelKey)}
-            </Link>
-          ))}
+          {visibleNavItems.map((item) => {
+            if (item.href !== '/') {
+              return (
+                <Link key={item.href} href={item.href} className="nav-link">
+                  {item.icon}
+                  {t(item.labelKey)}
+                </Link>
+              )
+            }
+
+            return (
+              <div key={item.href} className={`nav-group ${posMenuOpen ? 'open' : ''}`}>
+                <div className="nav-parent-row">
+                  <Link href={item.href} className="nav-link nav-parent-link" onClick={() => setPosMenuOpen(true)}>
+                    {item.icon}
+                    {t(item.labelKey)}
+                  </Link>
+                  <button
+                    type="button"
+                    className="nav-expand-button"
+                    aria-label={posMenuOpen ? t('nav.collapsePos') : t('nav.expandPos')}
+                    onClick={() => setPosMenuOpen((open) => !open)}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+                {posMenuOpen && (
+                  <div className="nav-submenu">
+                    {posSubItems.map((subItem) => (
+                      <Link key={subItem.href} href={subItem.href} className="nav-sub-link">
+                        {subItem.icon}
+                        {t(subItem.labelKey)}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </nav>
 
         <LanguageSwitcher language={language} setLanguage={setLanguage} />

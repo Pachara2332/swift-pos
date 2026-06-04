@@ -219,6 +219,71 @@ textarea {
   opacity: 1;
 }
 
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.nav-parent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.nav-parent-link {
+  min-width: 0;
+}
+
+.nav-expand-button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.62);
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-expand-button:hover {
+  background: rgba(217, 164, 65, 0.16);
+  color: #ffffff;
+}
+
+.nav-group.open .nav-expand-button svg {
+  transform: rotate(180deg);
+}
+
+.nav-submenu {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1.5rem;
+}
+
+.nav-sub-link {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 34px;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.nav-sub-link:hover {
+  color: #ffffff;
+}
+
+.nav-sub-link svg {
+  opacity: 0.72;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -1551,6 +1616,23 @@ table tbody tr:hover {
     flex: 0 0 auto;
     padding: 0.6rem 0.75rem;
     font-size: 0.82rem;
+  }
+
+  .nav-group {
+    flex: 0 0 auto;
+  }
+
+  .nav-parent-row {
+    display: flex;
+    gap: 0.2rem;
+  }
+
+  .nav-parent-link {
+    flex: 0 0 auto;
+  }
+
+  .nav-submenu {
+    display: none;
   }
 
   .role-switcher {

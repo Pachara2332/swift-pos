@@ -106,3 +106,5 @@ export type NotificationState = {
 }
 
 export type LiveStatus = 'connecting' | 'live' | 'offline'
+
+export type PosTool = 'sale' | 'weight' | 'quick-product' | 'debt'

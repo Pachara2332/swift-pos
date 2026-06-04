@@ -2,10 +2,9 @@
 
 import CartPanel from '@/components/pos/CartPanel'
 import CloseDayPanel from '@/components/pos/CloseDayPanel'
-import DebtLedgerPanel from '@/components/pos/DebtLedgerPanel'
 import HeldBillsPanel from '@/components/pos/HeldBillsPanel'
 import OfflineSyncPanel from '@/components/pos/OfflineSyncPanel'
-import type { CartItem, CurrentSaleEvent, DebtCustomer, HeldBill, LastReceipt, LiveStatus, OfflineSale } from '@/lib/pos/types'
+import type { CartItem, CurrentSaleEvent, HeldBill, LastReceipt, LiveStatus, OfflineSale } from '@/lib/pos/types'
 
 type PosSideColumnProps = {
   cart: CartItem[]
@@ -18,13 +17,6 @@ type PosSideColumnProps = {
   receivedAmount: string
   lastReceipt: LastReceipt | null
   heldBills: HeldBill[]
-  customers: DebtCustomer[]
-  selectedCustomerId: string
-  selectedCustomerBalance: number
-  totalDebt: number
-  customerBalances: Map<string, number>
-  newCustomerName: string
-  debtPaymentAmount: string
   todayRevenue: number
   todayCash: number
   todaySalesCount: number
@@ -42,12 +34,6 @@ type PosSideColumnProps = {
   onCheckout: () => void
   onRestoreHeldBill: (bill: HeldBill) => void
   onRemoveHeldBill: (id: string) => void
-  onSelectedCustomerChange: (value: string) => void
-  onNewCustomerNameChange: (value: string) => void
-  onAddCustomer: () => void
-  onDebtPaymentAmountChange: (value: string) => void
-  onRecordDebtPayment: () => void
-  onCreditSale: () => void
   onSyncOfflineSales: () => void
 }
 
@@ -62,13 +48,6 @@ export default function PosSideColumn({
   receivedAmount,
   lastReceipt,
   heldBills,
-  customers,
-  selectedCustomerId,
-  selectedCustomerBalance,
-  totalDebt,
-  customerBalances,
-  newCustomerName,
-  debtPaymentAmount,
   todayRevenue,
   todayCash,
   todaySalesCount,
@@ -86,12 +65,6 @@ export default function PosSideColumn({
   onCheckout,
   onRestoreHeldBill,
   onRemoveHeldBill,
-  onSelectedCustomerChange,
-  onNewCustomerNameChange,
-  onAddCustomer,
-  onDebtPaymentAmountChange,
-  onRecordDebtPayment,
-  onCreditSale,
   onSyncOfflineSales,
 }: PosSideColumnProps) {
   return (
@@ -118,23 +91,6 @@ export default function PosSideColumn({
         onCheckout={onCheckout}
       />
       <HeldBillsPanel heldBills={heldBills} onRestoreHeldBill={onRestoreHeldBill} onRemoveHeldBill={onRemoveHeldBill} />
-      <DebtLedgerPanel
-        cart={cart}
-        customers={customers}
-        selectedCustomerId={selectedCustomerId}
-        selectedCustomerBalance={selectedCustomerBalance}
-        totalDebt={totalDebt}
-        customerBalances={customerBalances}
-        newCustomerName={newCustomerName}
-        debtPaymentAmount={debtPaymentAmount}
-        loading={loading}
-        onSelectedCustomerChange={onSelectedCustomerChange}
-        onNewCustomerNameChange={onNewCustomerNameChange}
-        onAddCustomer={onAddCustomer}
-        onDebtPaymentAmountChange={onDebtPaymentAmountChange}
-        onRecordDebtPayment={onRecordDebtPayment}
-        onCreditSale={onCreditSale}
-      />
       <CloseDayPanel todayRevenue={todayRevenue} todayCash={todayCash} todaySalesCount={todaySalesCount} topTodayProduct={topTodayProduct} />
       <OfflineSyncPanel offlineSales={offlineSales} loading={loading} onSyncOfflineSales={onSyncOfflineSales} />
     </div>
