@@ -11,7 +11,6 @@ type Step = 'request' | 'confirm'
 export default function RoleSecurityPanel() {
   const { t } = useI18n()
   const [role, setRole] = useState<StoreRole>('Admin')
-  const [phone, setPhone] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -30,7 +29,7 @@ export default function RoleSecurityPanel() {
       const response = await fetch('/api/roles/password/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, phone, currentPassword }),
+        body: JSON.stringify({ role, currentPassword }),
       })
       const data = await response.json()
 
@@ -57,7 +56,7 @@ export default function RoleSecurityPanel() {
       const response = await fetch('/api/roles/password/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, phone, otp, newPassword }),
+        body: JSON.stringify({ role, otp, newPassword }),
       })
       const data = await response.json()
 
@@ -90,7 +89,7 @@ export default function RoleSecurityPanel() {
       </div>
 
       <form onSubmit={step === 'request' ? requestOtp : confirmPassword} style={{ display: 'grid', gap: '1rem' }}>
-        <div className="roles-security-grid">
+        <div className="roles-security-grid single-field">
           <label className="input-group" style={{ marginBottom: 0 }}>
             <span>{t('role.role')}</span>
             <select className="input-field" value={role} onChange={(event) => setRole(event.target.value as StoreRole)}>
@@ -98,10 +97,6 @@ export default function RoleSecurityPanel() {
                 <option key={item} value={item}>{item}</option>
               ))}
             </select>
-          </label>
-          <label className="input-group" style={{ marginBottom: 0 }}>
-            <span>{t('role.phone')}</span>
-            <input className="input-field" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+66123456789" />
           </label>
         </div>
 

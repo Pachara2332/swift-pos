@@ -8,13 +8,14 @@ import QuickProductPanel from '@/components/pos/QuickProductPanel'
 import QuickSalePanel from '@/components/pos/QuickSalePanel'
 import ScannerPanel from '@/components/pos/ScannerPanel'
 import WeightSalePanel from '@/components/pos/WeightSalePanel'
-import type { CartItem, DebtCustomer, PosTool, Product } from '@/lib/pos/types'
+import type { CartItem, DebtCustomer, PosTool, Product, ScanFeedback } from '@/lib/pos/types'
 
 type PosMainColumnProps = {
   activeTool: PosTool
   seniorMode: boolean
   loading: boolean
   showCamera: boolean
+  scanFeedback: ScanFeedback | null
   barcodeInput: string
   productSearch: string
   quickTab: string
@@ -84,6 +85,7 @@ export default function PosMainColumn({
   seniorMode,
   loading,
   showCamera,
+  scanFeedback,
   barcodeInput,
   productSearch,
   quickTab,
@@ -190,6 +192,7 @@ export default function PosMainColumn({
             barcodeInput={barcodeInput}
             loading={loading}
             showCamera={showCamera}
+            scanFeedback={scanFeedback}
             inputRef={inputRef}
             t={t}
             onToggleCamera={onToggleCamera}

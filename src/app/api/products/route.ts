@@ -1,41 +1,47 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { publishRealtime } from '@/lib/realtime'
+import { getRequestStoreId } from '@/lib/store-scope'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { barcode, name, brand, imageUrl, category, costPrice, salePrice, stock, lowStockAlert } = body
+    const storeId = await getRequestStoreId(request)
 
     if (!barcode || !name) {
       return NextResponse.json({ error: 'Barcode and name are required' }, { status: 400 })
     }
 
-    const existing = await prisma.product.findUnique({ where: { barcode } })
-    const product = await prisma.product.upsert({
-      where: { barcode },
-      update: {
-        name,
-        brand,
-        imageUrl,
-        category,
-        costPrice: Number(costPrice) || 0,
-        salePrice: Number(salePrice) || 0,
-        stock: Number(stock) || 0,
-        lowStockAlert: Number(lowStockAlert) || 5,
-      },
-      create: {
-        barcode,
-        name,
-        brand,
-        imageUrl,
-        category,
-        costPrice: Number(costPrice) || 0,
-        salePrice: Number(salePrice) || 0,
-        stock: Number(stock) || 0,
-        lowStockAlert: Number(lowStockAlert) || 5,
-      },
-    })
+    const existing = await prisma.product.findFirst({ where: { storeId, barcode } })
+    const product = existing
+      ? await prisma.product.update({
+        where: { id: existing.id },
+        data: {
+          name,
+          brand,
+          imageUrl,
+          category,
+          costPrice: Number(costPrice) || 0,
+          salePrice: Number(salePrice) || 0,
+          stock: Number(stock) || 0,
+          lowStockAlert: Number(lowStockAlert) || 5,
+        },
+      })
+      : await prisma.product.create({
+        data: {
+          storeId,
+          barcode,
+          name,
+          brand,
+          imageUrl,
+          category,
+          costPrice: Number(costPrice) || 0,
+          salePrice: Number(salePrice) || 0,
+          stock: Number(stock) || 0,
+          lowStockAlert: Number(lowStockAlert) || 5,
+        },
+      })
 
     publishRealtime({
       type: 'product.changed',
@@ -51,9 +57,11 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const storeId = await getRequestStoreId(request)
     const products = await prisma.product.findMany({
+      where: { storeId },
       orderBy: { updatedAt: 'desc' }
     })
     return NextResponse.json(products)

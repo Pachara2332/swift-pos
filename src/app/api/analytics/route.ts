@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getRequestStoreId } from '@/lib/store-scope'
 
 type SaleWithItems = {
   id: string
@@ -26,8 +27,9 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   ])
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const storeId = await getRequestStoreId(request)
     const now = new Date()
     const todayStart = new Date(now)
     todayStart.setHours(0, 0, 0, 0)
@@ -39,7 +41,7 @@ export async function GET() {
     const [sales, products] = await withTimeout(
       Promise.all([
         prisma.sale.findMany({
-          where: { createdAt: { gte: trendStart } },
+          where: { storeId, createdAt: { gte: trendStart } },
           orderBy: { createdAt: 'asc' },
           include: {
             items: {
@@ -57,6 +59,7 @@ export async function GET() {
           },
         }),
         prisma.product.findMany({
+          where: { storeId },
           orderBy: { stock: 'asc' },
           select: {
             id: true,

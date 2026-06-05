@@ -14,7 +14,9 @@ datasource db {
 
 model Product {
   id            String     @id @default(cuid())
-  barcode       String     @unique
+  storeId       String     @default("default-store")
+  store         Store      @relation(fields: [storeId], references: [id])
+  barcode       String
   name          String
   brand         String?
   imageUrl      String?
@@ -26,20 +28,30 @@ model Product {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   SaleItem      SaleItem[]
+
+  @@unique([storeId, barcode])
+  @@index([storeId, updatedAt])
+  @@index([storeId, stock])
 }
 
 model Sale {
   id          String     @id @default(cuid())
+  storeId     String     @default("default-store")
+  store       Store      @relation(fields: [storeId], references: [id])
   total       Float
   paidAmount  Float
   change      Float
   cashierId   String?
   createdAt   DateTime   @default(now())
   items       SaleItem[]
+
+  @@index([storeId, createdAt])
 }
 
 model SaleItem {
   id        String   @id @default(cuid())
+  storeId   String   @default("default-store")
+  store     Store    @relation(fields: [storeId], references: [id])
   saleId    String
   productId String
   quantity  Int
@@ -50,15 +62,20 @@ model SaleItem {
 
 model RoleCredential {
   id           String   @id @default(cuid())
-  role         String   @unique
+  storeId      String   @default("default-store")
+  store        Store    @relation(fields: [storeId], references: [id])
+  role         String
   passwordHash String
-  phone        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@unique([storeId, role])
 }
 
 model RolePasswordReset {
   id         String    @id @default(cuid())
+  storeId    String    @default("default-store")
+  store      Store     @relation(fields: [storeId], references: [id])
   role       String
   phone      String
   codeHash   String
@@ -66,5 +83,53 @@ model RolePasswordReset {
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  @@index([role, phone, expiresAt])
+  @@index([storeId, role, phone, expiresAt])
+}
+
+model Store {
+  id                 String              @id @default(cuid())
+  name               String
+  phone              String?
+  ownerPhone         String?
+  address            String?
+  provinceId         Int?
+  provinceName       String?
+  districtId         Int?
+  districtName       String?
+  subDistrictId      Int?
+  subDistrictName    String?
+  zipCode            String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  products           Product[]
+  sales              Sale[]
+  saleItems          SaleItem[]
+  roleCredentials    RoleCredential[]
+  rolePasswordResets RolePasswordReset[]
+  memberships        StoreMembership[]
+}
+
+model AppUser {
+  id           String            @id @default(cuid())
+  name         String
+  phone        String?           @unique
+  email        String?           @unique
+  passwordHash String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  memberships  StoreMembership[]
+}
+
+model StoreMembership {
+  id        String   @id @default(cuid())
+  storeId   String
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id])
+  user      AppUser  @relation(fields: [userId], references: [id])
+
+  @@unique([storeId, userId])
+  @@index([userId])
 }

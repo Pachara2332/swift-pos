@@ -46,6 +46,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     showCamera,
     loading,
     notification,
+    scanFeedback,
     lastReceipt,
     liveStatus,
     remoteSale,
@@ -72,6 +73,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     setShowCamera,
     setLoading,
     setNotification,
+    setScanFeedback,
     setLastReceipt,
     setLiveStatus,
     setRemoteSale,
@@ -126,6 +128,35 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     const timer = window.setTimeout(() => setNotification(null), 3000)
     return () => window.clearTimeout(timer)
   }, [notification, setNotification])
+
+  useEffect(() => {
+    if (!scanFeedback) return
+
+    const timer = window.setTimeout(() => setScanFeedback(null), 1200)
+    return () => window.clearTimeout(timer)
+  }, [scanFeedback, setScanFeedback])
+
+  const playScanBeep = useCallback(() => {
+    const AudioContextClass = window.AudioContext || (window as Window & {
+      webkitAudioContext?: typeof AudioContext
+    }).webkitAudioContext
+    if (!AudioContextClass) return
+
+    const audioContext = new AudioContextClass()
+    const oscillator = audioContext.createOscillator()
+    const gain = audioContext.createGain()
+
+    oscillator.type = 'square'
+    oscillator.frequency.value = 880
+    gain.gain.setValueAtTime(0.0001, audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.08, audioContext.currentTime + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.12)
+    oscillator.connect(gain)
+    gain.connect(audioContext.destination)
+    oscillator.start()
+    oscillator.stop(audioContext.currentTime + 0.13)
+    window.setTimeout(() => audioContext.close().catch(() => undefined), 220)
+  }, [])
 
   useEffect(() => {
     const events = new EventSource('/api/realtime')
@@ -291,20 +322,40 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     return res.json() as Promise<{ id: string; createdAt?: string }>
   }
 
+  const showScanFeedback = useCallback((type: 'success' | 'info' | 'error', title: string, detail: string) => {
+    setScanFeedback({ type, title, detail, createdAt: Date.now() })
+    if (type === 'success') playScanBeep()
+  }, [playScanBeep, setScanFeedback])
+
   const handleScan = useCallback(async (barcode: string) => {
-    if (!barcode.trim()) return
+    const normalizedBarcode = barcode.trim()
+    if (!normalizedBarcode) return
+
+    const cachedProduct = products.find((product) => product.barcode === normalizedBarcode)
+    if (cachedProduct) {
+      addProductToCart(cachedProduct)
+      setNotification({ type: 'success', message: `${cachedProduct.name} ${t('pos.added')}` })
+      showScanFeedback('success', cachedProduct.name, money.format(cachedProduct.salePrice))
+      setBarcodeInput('')
+      inputRef.current?.focus()
+      return
+    }
+
     setLoading(true)
+    let timer: number | undefined
     try {
-      const res = await fetch(`/api/products/${barcode}`)
+      const controller = new AbortController()
+      timer = window.setTimeout(() => controller.abort(), 2500)
+      const res = await fetch(`/api/products/${encodeURIComponent(normalizedBarcode)}`, { signal: controller.signal })
       const data = await res.json()
 
       if (res.ok && data.source === 'local') {
         addProductToCart(data.product)
         setNotification({ type: 'success', message: `${data.product.name} ${t('pos.added')}` })
+        showScanFeedback('success', data.product.name, money.format(data.product.salePrice))
         setBarcodeInput('')
-        if (showCamera) setShowCamera(false)
       } else {
-        const params = new URLSearchParams({ barcode })
+        const params = new URLSearchParams({ barcode: normalizedBarcode })
         if (data.source === 'external') {
           params.append('name', data.product.name)
           params.append('brand', data.product.brand)
@@ -312,16 +363,19 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
           setNotification({ type: 'info', message: t('pos.externalFound') })
         } else {
           setNotification({ type: 'info', message: t('pos.notFound') })
+          showScanFeedback('info', 'ไม่พบสินค้า', normalizedBarcode)
         }
         setTimeout(() => router.push(`/products/add?${params.toString()}`), 800)
       }
     } catch (error) {
       console.error('Scan error:', error)
       setNotification({ type: 'error', message: t('pos.serverError') })
+      showScanFeedback('error', 'สแกนไม่สำเร็จ', normalizedBarcode)
     } finally {
+      if (timer) window.clearTimeout(timer)
       setLoading(false)
     }
-  }, [addProductToCart, router, setBarcodeInput, setLoading, setNotification, setShowCamera, showCamera, t])
+  }, [addProductToCart, products, router, setBarcodeInput, setLoading, setNotification, showScanFeedback, t])
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && barcodeInput) handleScan(barcodeInput)
@@ -629,6 +683,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
       seniorMode,
       loading,
       showCamera,
+      scanFeedback,
       barcodeInput,
       productSearch,
       quickTab,

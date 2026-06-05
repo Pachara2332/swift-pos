@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { publishRealtime } from '@/lib/realtime'
+import { getRequestStoreId } from '@/lib/store-scope'
 
 type SaleRequestItem = {
   productId: string
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { total, paidAmount, change, items } = body as { total: number; paidAmount: number; change: number; items?: SaleRequestItem[] }
+    const storeId = await getRequestStoreId(request)
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'Sale must have items' }, { status: 400 })
@@ -22,11 +24,13 @@ export async function POST(request: Request) {
       // 1. Create Sale
       const sale = await tx.sale.create({
         data: {
+          storeId,
           total: Number(total),
           paidAmount: Number(paidAmount),
           change: Number(change),
           items: {
             create: items.map((item) => ({
+              storeId,
               productId: item.productId,
               quantity: item.quantity,
               price: item.price,
@@ -37,8 +41,8 @@ export async function POST(request: Request) {
 
       // 2. Decrement stock for each product
       for (const item of items) {
-        await tx.product.update({
-          where: { id: item.productId },
+        await tx.product.updateMany({
+          where: { id: item.productId, storeId },
           data: {
             stock: {
               decrement: item.quantity,

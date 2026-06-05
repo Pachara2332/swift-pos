@@ -18,6 +18,7 @@ import type {
   NotificationState,
   OfflineSale,
   Product,
+  ScanFeedback,
 } from '@/lib/pos/types'
 
 type Updater<T> = T | ((previous: T) => T)
@@ -41,6 +42,7 @@ type PosStore = {
   showCamera: boolean
   loading: boolean
   notification: NotificationState | null
+  scanFeedback: ScanFeedback | null
   lastReceipt: LastReceipt | null
   liveStatus: LiveStatus
   remoteSale: CurrentSaleEvent | null
@@ -67,6 +69,7 @@ type PosStore = {
   setShowCamera: (next: Updater<boolean>) => void
   setLoading: (next: Updater<boolean>) => void
   setNotification: (next: Updater<NotificationState | null>) => void
+  setScanFeedback: (next: Updater<ScanFeedback | null>) => void
   setLastReceipt: (next: Updater<LastReceipt | null>) => void
   setLiveStatus: (next: Updater<LiveStatus>) => void
   setRemoteSale: (next: Updater<CurrentSaleEvent | null>) => void
@@ -96,6 +99,7 @@ export const usePosStore = create<PosStore>((set) => ({
   showCamera: false,
   loading: false,
   notification: null,
+  scanFeedback: null,
   lastReceipt: null,
   liveStatus: 'connecting',
   remoteSale: null,
@@ -122,6 +126,7 @@ export const usePosStore = create<PosStore>((set) => ({
   setShowCamera: (next) => set((state) => ({ showCamera: resolveUpdater(next, state.showCamera) })),
   setLoading: (next) => set((state) => ({ loading: resolveUpdater(next, state.loading) })),
   setNotification: (next) => set((state) => ({ notification: resolveUpdater(next, state.notification) })),
+  setScanFeedback: (next) => set((state) => ({ scanFeedback: resolveUpdater(next, state.scanFeedback) })),
   setLastReceipt: (next) => set((state) => ({ lastReceipt: resolveUpdater(next, state.lastReceipt) })),
   setLiveStatus: (next) => set((state) => ({ liveStatus: resolveUpdater(next, state.liveStatus) })),
   setRemoteSale: (next) => set((state) => ({ remoteSale: resolveUpdater(next, state.remoteSale) })),

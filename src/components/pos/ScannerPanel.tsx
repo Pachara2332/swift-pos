@@ -3,11 +3,13 @@
 import type { KeyboardEvent, RefObject } from 'react'
 import { Camera, ScanLine, Search } from 'lucide-react'
 import BarcodeScanner from '@/components/BarcodeScanner'
+import type { ScanFeedback } from '@/lib/pos/types'
 
 type ScannerPanelProps = {
   barcodeInput: string
   loading: boolean
   showCamera: boolean
+  scanFeedback: ScanFeedback | null
   inputRef: RefObject<HTMLInputElement | null>
   t: (key: string) => string
   onToggleCamera: () => void
@@ -20,6 +22,7 @@ export default function ScannerPanel({
   barcodeInput,
   loading,
   showCamera,
+  scanFeedback,
   inputRef,
   t,
   onToggleCamera,
@@ -55,6 +58,13 @@ export default function ScannerPanel({
             {showCamera ? t('pos.close') : t('pos.camera')}
           </button>
         </div>
+
+        {scanFeedback && (
+          <div className={`scan-feedback scan-feedback-${scanFeedback.type}`} aria-live="polite">
+            <strong>{scanFeedback.title}</strong>
+            <span>{scanFeedback.detail}</span>
+          </div>
+        )}
       </section>
 
       {showCamera && (

@@ -1,6 +1,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { storeRoles, type StoreRole } from '@/lib/role-constants'
+import { DEFAULT_STORE_ID, ensureStore } from '@/lib/store-scope'
 
 const DEFAULT_ROLE_PASSWORD = process.env.SWIFT_POS_DEFAULT_ROLE_PASSWORD ?? '123456'
 const OTP_TTL_MINUTES = 10
@@ -21,12 +22,15 @@ function verifySecret(secret: string, storedHash: string) {
   return expected.length === actual.length && timingSafeEqual(expected, actual)
 }
 
-export async function ensureRoleCredentials() {
+export async function ensureRoleCredentials(storeId = DEFAULT_STORE_ID) {
+  await ensureStore(storeId)
+
   for (const role of storeRoles) {
-    const existing = await prisma.roleCredential.findUnique({ where: { role } })
+    const existing = await prisma.roleCredential.findFirst({ where: { storeId, role } })
     if (!existing) {
       await prisma.roleCredential.create({
         data: {
+          storeId,
           role,
           passwordHash: hashSecret(DEFAULT_ROLE_PASSWORD),
         },
@@ -35,24 +39,19 @@ export async function ensureRoleCredentials() {
   }
 }
 
-export async function verifyRolePassword(role: StoreRole, password: string) {
-  await ensureRoleCredentials()
+export async function verifyRolePassword(role: StoreRole, password: string, storeId = DEFAULT_STORE_ID) {
+  await ensureRoleCredentials(storeId)
 
-  const credential = await prisma.roleCredential.findUnique({ where: { role } })
+  const credential = await prisma.roleCredential.findFirst({ where: { storeId, role } })
   if (!credential) return false
 
   return verifySecret(password, credential.passwordHash)
 }
 
-export async function createPasswordReset(role: StoreRole, phone: string, currentPassword: string) {
-  const isValid = await verifyRolePassword(role, currentPassword)
+export async function createPasswordReset(role: StoreRole, phone: string, currentPassword: string, storeId = DEFAULT_STORE_ID) {
+  const isValid = await verifyRolePassword(role, currentPassword, storeId)
   if (!isValid) {
     return { ok: false as const, error: 'Current password is incorrect' }
-  }
-
-  const credential = await prisma.roleCredential.findUnique({ where: { role } })
-  if (credential?.phone && credential.phone !== phone) {
-    return { ok: false as const, error: 'Phone number does not match this role' }
   }
 
   const code = randomBytes(3).readUIntBE(0, 3).toString().slice(0, 6).padStart(6, '0')
@@ -60,6 +59,7 @@ export async function createPasswordReset(role: StoreRole, phone: string, curren
 
   await prisma.rolePasswordReset.create({
     data: {
+      storeId,
       role,
       phone,
       codeHash: hashSecret(code),
@@ -70,9 +70,13 @@ export async function createPasswordReset(role: StoreRole, phone: string, curren
   return { ok: true as const, code, expiresAt }
 }
 
-export async function changeRolePassword(role: StoreRole, phone: string, code: string, newPassword: string, options?: { skipLocalOtpCheck?: boolean }) {
+export async function changeRolePassword(role: StoreRole, phone: string, code: string, newPassword: string, options?: { skipLocalOtpCheck?: boolean; storeId?: string }) {
+  const storeId = options?.storeId ?? DEFAULT_STORE_ID
+  await ensureStore(storeId)
+
   const reset = await prisma.rolePasswordReset.findFirst({
     where: {
+      storeId,
       role,
       phone,
       consumedAt: null,
@@ -87,14 +91,13 @@ export async function changeRolePassword(role: StoreRole, phone: string, code: s
 
   await prisma.$transaction([
     prisma.roleCredential.upsert({
-      where: { role },
+      where: { storeId_role: { storeId, role } },
       update: {
-        phone,
         passwordHash: hashSecret(newPassword),
       },
       create: {
+        storeId,
         role,
-        phone,
         passwordHash: hashSecret(newPassword),
       },
     }),

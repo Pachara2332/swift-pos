@@ -1,34 +1,40 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { isStoreRole } from '@/lib/role-constants'
 import { changeRolePassword } from '@/lib/roles'
 import { isTwilioVerifyConfigured, verifyRolePasswordOtp } from '@/lib/sms'
-import { isValidE164PhoneNumber, normalizePhoneNumber } from '@/lib/phone'
+import { isValidE164PhoneNumber } from '@/lib/phone'
+import { getRequestStoreId } from '@/lib/store-scope'
 
 export async function POST(request: Request) {
   try {
-    const { role, phone, otp, newPassword } = await request.json()
+    const { role, otp, newPassword } = await request.json()
 
-    if (!isStoreRole(role) || typeof phone !== 'string' || typeof otp !== 'string' || typeof newPassword !== 'string') {
-      return NextResponse.json({ error: 'Role, phone, OTP, and new password are required' }, { status: 400 })
+    if (!isStoreRole(role) || typeof otp !== 'string' || typeof newPassword !== 'string') {
+      return NextResponse.json({ error: 'Role, OTP, and new password are required' }, { status: 400 })
     }
 
     if (newPassword.length < 6) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
     }
 
-    const cleanPhone = normalizePhoneNumber(phone)
     const cleanOtp = otp.trim()
-    if (!isValidE164PhoneNumber(cleanPhone)) {
-      return NextResponse.json({ error: 'Phone number is invalid' }, { status: 400 })
+    const storeId = await getRequestStoreId(request)
+    const store = await prisma.store.findUnique({ where: { id: storeId } })
+    const ownerPhone = store?.ownerPhone
+
+    if (!ownerPhone || !isValidE164PhoneNumber(ownerPhone)) {
+      return NextResponse.json({ error: 'Owner phone is not set for this store' }, { status: 400 })
     }
 
-    const providerApproved = await verifyRolePasswordOtp(cleanPhone, cleanOtp)
+    const providerApproved = await verifyRolePasswordOtp(ownerPhone, cleanOtp)
     if (!providerApproved) {
       return NextResponse.json({ error: 'OTP is invalid or expired' }, { status: 401 })
     }
 
-    const result = await changeRolePassword(role, cleanPhone, cleanOtp, newPassword, {
+    const result = await changeRolePassword(role, ownerPhone, cleanOtp, newPassword, {
       skipLocalOtpCheck: isTwilioVerifyConfigured(),
+      storeId,
     })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 401 })

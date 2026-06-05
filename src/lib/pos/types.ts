@@ -105,6 +105,13 @@ export type NotificationState = {
   message: string
 }
 
+export type ScanFeedback = {
+  type: 'success' | 'info' | 'error'
+  title: string
+  detail: string
+  createdAt: number
+}
+
 export type LiveStatus = 'connecting' | 'live' | 'offline'
 
 export type PosTool = 'sale' | 'weight' | 'quick-product' | 'debt'
