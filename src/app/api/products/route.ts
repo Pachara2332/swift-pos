@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { publishRealtime } from '@/lib/realtime'
 import { getRequestStoreId } from '@/lib/store-scope'
@@ -8,6 +9,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { barcode, name, brand, imageUrl, category, costPrice, salePrice, stock, lowStockAlert } = body
     const storeId = await getRequestStoreId(request)
+    const auth = await requireRole(storeId, ['Admin'])
+    if (!auth.ok) return auth.response
 
     if (!barcode || !name) {
       return NextResponse.json({ error: 'Barcode and name are required' }, { status: 400 })
@@ -60,6 +63,9 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const storeId = await getRequestStoreId(request)
+    const auth = await requireRole(storeId, ['Admin', 'Manager', 'Cashier'])
+    if (!auth.ok) return auth.response
+
     const products = await prisma.product.findMany({
       where: { storeId },
       orderBy: { updatedAt: 'desc' }

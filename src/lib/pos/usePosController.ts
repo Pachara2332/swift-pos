@@ -4,8 +4,6 @@ import { useCallback, useEffect, useId, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   completedSalesKey,
-  customersKey,
-  debtEntriesKey,
   heldBillsKey,
   offlineSalesKey,
   writeStoredArray,
@@ -105,6 +103,35 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
   useEffect(() => {
     loadProducts()
   }, [loadProducts])
+
+  const loadDebtLedger = useCallback(() => {
+    Promise.all([
+      fetch('/api/debt/customers').then((res) => res.ok ? res.json() : []),
+      fetch('/api/debt/entries').then((res) => res.ok ? res.json() : []),
+    ])
+      .then(([nextCustomers, nextEntries]) => {
+        setCustomers(Array.isArray(nextCustomers) ? nextCustomers : [])
+        setDebtEntries(Array.isArray(nextEntries) ? nextEntries : [])
+      })
+      .catch(() => {
+        setCustomers([])
+        setDebtEntries([])
+      })
+  }, [setCustomers, setDebtEntries])
+
+  useEffect(() => {
+    loadDebtLedger()
+  }, [loadDebtLedger])
+
+  useEffect(() => {
+    const refreshAfterRoleChange = () => {
+      loadProducts()
+      loadDebtLedger()
+    }
+
+    window.addEventListener('swift-pos-role-session-change', refreshAfterRoleChange)
+    return () => window.removeEventListener('swift-pos-role-session-change', refreshAfterRoleChange)
+  }, [loadDebtLedger, loadProducts])
 
   useEffect(() => {
     const initialStatus = window.setTimeout(() => {
@@ -319,7 +346,23 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
       body: JSON.stringify(payload),
     })
     if (!res.ok) throw new Error('sale failed')
-    return res.json() as Promise<{ id: string; createdAt?: string }>
+    return res.json() as Promise<{ id: string; createdAt?: string; debtEntry?: DebtEntry | null }>
+  }
+
+  const postDebtEntry = async (entry: {
+    customerId: string
+    type: DebtEntry['type']
+    amount: number
+    note: string
+    saleId?: string
+  }) => {
+    const res = await fetch('/api/debt/entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    })
+    if (!res.ok) throw new Error('debt entry failed')
+    return res.json() as Promise<DebtEntry>
   }
 
   const showScanFeedback = useCallback((type: 'success' | 'info' | 'error', title: string, detail: string) => {
@@ -346,7 +389,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     try {
       const controller = new AbortController()
       timer = window.setTimeout(() => controller.abort(), 2500)
-      const res = await fetch(`/api/products/${encodeURIComponent(normalizedBarcode)}`, { signal: controller.signal })
+      const res = await fetch(`/api/products/${encodeURIComponent(normalizedBarcode)}?external=1`, { signal: controller.signal })
       const data = await res.json()
 
       if (res.ok && data.source === 'local') {
@@ -447,7 +490,10 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
 
   const completeCart = async (paymentType: LastReceipt['paymentType'], finalPaidAmount: number, finalChange: number, creditCustomerId?: string) => {
     const receiptItems = cart.map((item) => ({ name: item.name, quantity: item.quantity, price: item.price }))
-    const payload = buildSalePayload(cart, total, finalPaidAmount, finalChange)
+    const payload = buildSalePayload(cart, total, finalPaidAmount, finalChange, {
+      paymentType: paymentType === 'credit' ? 'credit' : 'cash',
+      customerId: creditCustomerId,
+    })
     const fallbackReceipt: LastReceipt = {
       id: newId(paymentType),
       items: receiptItems,
@@ -462,31 +508,24 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
       if (!navigator.onLine) throw new Error('offline')
       const sale = await postSale(payload)
       const receipt = { ...fallbackReceipt, id: sale.id, createdAt: sale.createdAt ?? fallbackReceipt.createdAt }
+
+      if (paymentType === 'credit' && sale.debtEntry) {
+        setDebtEntries((prev) => [sale.debtEntry as DebtEntry, ...prev])
+      }
+
       setLastReceipt(receipt)
       rememberCompletedSale(receipt)
-      setNotification({ type: 'success', message: paymentType === 'credit' ? 'บันทึกขายเชื่อแล้ว' : `${t('pos.saleCompleted')}! ${money.format(total)}` })
+      if (paymentType !== 'credit') {
+        setNotification({ type: 'success', message: `${t('pos.saleCompleted')}! ${money.format(total)}` })
+      } else if (creditCustomerId) {
+        setNotification({ type: 'success', message: 'บันทึกขายเชื่อแล้ว' })
+      }
     } catch {
       saveOfflineSale(payload, fallbackReceipt)
       setLastReceipt(fallbackReceipt)
       rememberCompletedSale(fallbackReceipt)
       setLiveStatus('offline')
       setNotification({ type: 'info', message: 'เน็ตหลุด บันทึกบิลไว้ในเครื่องแล้ว รอ sync' })
-    }
-
-    if (paymentType === 'credit' && creditCustomerId) {
-      const debt: DebtEntry = {
-        id: newId('debt'),
-        customerId: creditCustomerId,
-        type: 'sale',
-        amount: total,
-        note: `ขายเชื่อ ${receiptItems.length} รายการ`,
-        createdAt: new Date().toISOString(),
-      }
-      setDebtEntries((prev) => {
-        const next = [debt, ...prev]
-        writeStoredArray(debtEntriesKey, next)
-        return next
-      })
     }
 
     setCart([])
@@ -506,19 +545,29 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     setLoading(false)
   }
 
-  const addCustomer = () => {
+  const addCustomer = async () => {
     const name = newCustomerName.trim()
     if (!name) return
 
-    const customer: DebtCustomer = { id: newId('customer'), name, createdAt: new Date().toISOString() }
-    setCustomers((prev) => {
-      const next = [customer, ...prev]
-      writeStoredArray(customersKey, next)
-      return next
-    })
-    setSelectedCustomerId(customer.id)
-    setNewCustomerName('')
-    setNotification({ type: 'success', message: `เพิ่มลูกหนี้ ${name} แล้ว` })
+    setLoading(true)
+    try {
+      const res = await fetch('/api/debt/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      if (!res.ok) throw new Error('customer failed')
+
+      const customer = await res.json() as DebtCustomer
+      setCustomers((prev) => [customer, ...prev])
+      setSelectedCustomerId(customer.id)
+      setNewCustomerName('')
+      setNotification({ type: 'success', message: `เพิ่มลูกหนี้ ${name} แล้ว` })
+    } catch {
+      setNotification({ type: 'error', message: 'เพิ่มลูกหนี้ไม่สำเร็จ' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCreditSale = async () => {
@@ -533,28 +582,29 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     setLoading(false)
   }
 
-  const recordDebtPayment = () => {
+  const recordDebtPayment = async () => {
     const amount = Number(debtPaymentAmount)
     if (!selectedCustomerId || !Number.isFinite(amount) || amount <= 0) {
       setNotification({ type: 'error', message: 'เลือกลูกค้าและใส่ยอดจ่ายให้ถูกต้อง' })
       return
     }
 
-    const entry: DebtEntry = {
-      id: newId('payment'),
-      customerId: selectedCustomerId,
-      type: 'payment',
-      amount,
-      note: 'จ่ายบางส่วน',
-      createdAt: new Date().toISOString(),
+    setLoading(true)
+    try {
+      const entry = await postDebtEntry({
+        customerId: selectedCustomerId,
+        type: 'payment',
+        amount,
+        note: 'จ่ายบางส่วน',
+      })
+      setDebtEntries((prev) => [entry, ...prev])
+      setDebtPaymentAmount('')
+      setNotification({ type: 'success', message: `รับชำระ ${money.format(amount)} แล้ว` })
+    } catch {
+      setNotification({ type: 'error', message: 'บันทึกการชำระไม่สำเร็จ' })
+    } finally {
+      setLoading(false)
     }
-    setDebtEntries((prev) => {
-      const next = [entry, ...prev]
-      writeStoredArray(debtEntriesKey, next)
-      return next
-    })
-    setDebtPaymentAmount('')
-    setNotification({ type: 'success', message: `รับชำระ ${money.format(amount)} แล้ว` })
   }
 
   const syncOfflineSales = async () => {

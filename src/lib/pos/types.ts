@@ -61,6 +61,8 @@ export type SalePayload = {
   total: number
   paidAmount: number
   change: number
+  paymentType?: 'cash' | 'credit'
+  customerId?: string
   items: {
     productId: string
     quantity: number

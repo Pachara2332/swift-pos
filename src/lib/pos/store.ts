@@ -1,8 +1,6 @@
 import { create } from 'zustand'
 import {
   completedSalesKey,
-  customersKey,
-  debtEntriesKey,
   heldBillsKey,
   offlineSalesKey,
   readStoredArray,
@@ -92,8 +90,8 @@ export const usePosStore = create<PosStore>((set) => ({
   quickTab: 'ขายดี',
   cart: [],
   heldBills: readStoredArray<HeldBill>(heldBillsKey),
-  customers: readStoredArray<DebtCustomer>(customersKey),
-  debtEntries: readStoredArray<DebtEntry>(debtEntriesKey),
+  customers: [],
+  debtEntries: [],
   offlineSales: readStoredArray<OfflineSale>(offlineSalesKey),
   completedSales: readStoredArray<LastReceipt>(completedSalesKey),
   showCamera: false,

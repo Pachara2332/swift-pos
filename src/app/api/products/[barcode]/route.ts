@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getRequestStoreId } from '@/lib/store-scope'
 
@@ -11,6 +12,8 @@ export async function GET(
     const url = new URL(request.url)
     const shouldLookupExternal = url.searchParams.get('external') === '1'
     const storeId = await getRequestStoreId(request)
+    const auth = await requireRole(storeId, ['Admin', 'Manager', 'Cashier'])
+    if (!auth.ok) return auth.response
     
     // 1. Search in local database
     const localProduct = await prisma.product.findUnique({

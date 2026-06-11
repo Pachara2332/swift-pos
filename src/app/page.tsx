@@ -19,25 +19,45 @@ function isStoreReady(store: StoreSetupState | null) {
 
 export default function POSPage() {
   const [store, setStore] = useState<StoreSetupState | null>(null)
+  const [authenticated, setAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let active = true
 
-    fetch('/api/store')
-      .then((response) => response.json())
-      .then((data) => {
-        if (active) setStore(data)
+    Promise.all([
+      fetch('/api/store').then((response) => response.json()),
+      fetch('/api/roles/session').then((response) => response.json()).catch(() => ({ authenticated: false })),
+    ])
+      .then(([storeData, sessionData]) => {
+        if (!active) return
+        setStore(storeData)
+        setAuthenticated(Boolean(sessionData.authenticated))
       })
       .catch(() => {
-        if (active) setStore(null)
+        if (!active) return
+        setStore(null)
+        setAuthenticated(false)
       })
       .finally(() => {
         if (active) setLoading(false)
       })
 
+    const refreshSession = () => {
+      fetch('/api/roles/session')
+        .then((response) => response.json())
+        .then((sessionData) => {
+          if (active) setAuthenticated(Boolean(sessionData.authenticated))
+        })
+        .catch(() => {
+          if (active) setAuthenticated(false)
+        })
+    }
+    window.addEventListener('swift-pos-role-session-change', refreshSession)
+
     return () => {
       active = false
+      window.removeEventListener('swift-pos-role-session-change', refreshSession)
     }
   }, [])
 
@@ -45,6 +65,17 @@ export default function POSPage() {
 
   if (!isStoreReady(store)) {
     return <StoreOnboarding initialStore={store} onComplete={() => window.location.reload()} />
+  }
+
+  if (!authenticated) {
+    return (
+      <section className="card" style={{ maxWidth: 560, margin: '0 auto' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>ปลดล็อกบทบาทก่อนใช้งาน</h1>
+        <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
+          เลือกบทบาทที่แถบซ้ายแล้วกดปลดล็อกด้วยรหัสผ่าน บิลขาย สต็อก แดชบอร์ด และสมุดลูกหนี้จะเรียก API ได้หลังมี server session เท่านั้น
+        </p>
+      </section>
+    )
   }
 
   return (

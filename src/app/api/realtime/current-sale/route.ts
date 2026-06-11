@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
 import { publishRealtime, type RealtimeCartItem } from '@/lib/realtime'
+import { getRequestStoreId } from '@/lib/store-scope'
 
 export async function POST(request: Request) {
   try {
+    const storeId = await getRequestStoreId(request)
+    const auth = await requireRole(storeId, ['Admin', 'Manager', 'Cashier'])
+    if (!auth.ok) return auth.response
+
     const { sessionId, items, itemCount, total } = await request.json()
 
     if (typeof sessionId !== 'string' || !Array.isArray(items)) {

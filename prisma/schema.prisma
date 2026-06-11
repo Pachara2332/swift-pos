@@ -38,14 +38,18 @@ model Sale {
   id          String     @id @default(cuid())
   storeId     String     @default("default-store")
   store       Store      @relation(fields: [storeId], references: [id])
+  customerId  String?
+  customer    DebtCustomer? @relation(fields: [customerId], references: [id])
   total       Float
   paidAmount  Float
   change      Float
   cashierId   String?
+  paymentType String     @default("cash")
   createdAt   DateTime   @default(now())
   items       SaleItem[]
 
   @@index([storeId, createdAt])
+  @@index([storeId, customerId])
 }
 
 model SaleItem {
@@ -104,9 +108,42 @@ model Store {
   products           Product[]
   sales              Sale[]
   saleItems          SaleItem[]
+  debtCustomers      DebtCustomer[]
+  debtEntries        DebtEntry[]
   roleCredentials    RoleCredential[]
   rolePasswordResets RolePasswordReset[]
   memberships        StoreMembership[]
+}
+
+model DebtCustomer {
+  id        String      @id @default(cuid())
+  storeId   String      @default("default-store")
+  store     Store       @relation(fields: [storeId], references: [id])
+  name      String
+  phone     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  entries   DebtEntry[]
+  sales     Sale[]
+
+  @@index([storeId, updatedAt])
+  @@index([storeId, name])
+}
+
+model DebtEntry {
+  id         String       @id @default(cuid())
+  storeId    String       @default("default-store")
+  store      Store        @relation(fields: [storeId], references: [id])
+  customerId String
+  customer   DebtCustomer @relation(fields: [customerId], references: [id])
+  saleId     String?
+  type       String
+  amount     Float
+  note       String       @default("")
+  createdAt  DateTime     @default(now())
+
+  @@index([storeId, customerId, createdAt])
+  @@index([storeId, createdAt])
 }
 
 model AppUser {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getRequestStoreId } from '@/lib/store-scope'
 
@@ -30,6 +31,9 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 export async function GET(request: Request) {
   try {
     const storeId = await getRequestStoreId(request)
+    const auth = await requireRole(storeId, ['Admin', 'Manager'])
+    if (!auth.ok) return auth.response
+
     const now = new Date()
     const todayStart = new Date(now)
     todayStart.setHours(0, 0, 0, 0)

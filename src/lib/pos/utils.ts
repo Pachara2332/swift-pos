@@ -29,11 +29,19 @@ export function isToday(value: string) {
   return new Date(value).toDateString() === new Date().toDateString()
 }
 
-export function buildSalePayload(cart: CartItem[], total: number, paidAmount: number, change: number): SalePayload {
+export function buildSalePayload(
+  cart: CartItem[],
+  total: number,
+  paidAmount: number,
+  change: number,
+  options?: Pick<SalePayload, 'paymentType' | 'customerId'>
+): SalePayload {
   return {
     total,
     paidAmount,
     change,
+    paymentType: options?.paymentType,
+    customerId: options?.customerId,
     items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity, price: item.price })),
   }
 }

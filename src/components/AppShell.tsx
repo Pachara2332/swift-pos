@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, BarChart3, Barcode, ChevronDown, Languages, List, PackagePlus, Scale, ShieldCheck, ShoppingCart, Users, Zap } from 'lucide-react'
 import { usePathname } from 'next/navigation'
@@ -69,23 +69,13 @@ const posSubItems = [
 ]
 
 const roleStorageKey = 'swift-pos-role'
-const roleChangeEvent = 'swift-pos-role-change'
+const roleSessionChangeEvent = 'swift-pos-role-session-change'
 
 function getStoredRole(): StoreRole {
-  if (typeof window === 'undefined') return 'Admin'
+  if (typeof window === 'undefined') return 'Cashier'
 
   const stored = window.localStorage.getItem(roleStorageKey)
-  return isStoreRole(stored) ? stored : 'Admin'
-}
-
-function subscribeToRole(callback: () => void) {
-  window.addEventListener('storage', callback)
-  window.addEventListener(roleChangeEvent, callback)
-
-  return () => {
-    window.removeEventListener('storage', callback)
-    window.removeEventListener(roleChangeEvent, callback)
-  }
+  return isStoreRole(stored) ? stored : 'Cashier'
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -99,12 +89,48 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 function AppShellContent({ children }: { children: React.ReactNode }) {
   const { language, setLanguage, t } = useI18n()
   const pathname = usePathname()
-  const role = useSyncExternalStore<StoreRole>(subscribeToRole, getStoredRole, () => 'Admin')
+  const [role, setRoleState] = useState<StoreRole>('Cashier')
+  const [authenticated, setAuthenticated] = useState(false)
   const [posMenuOpen, setPosMenuOpen] = useState(() => pathname === '/')
-  const setRole = useCallback((nextRole: StoreRole) => {
-    window.localStorage.setItem(roleStorageKey, nextRole)
-    window.dispatchEvent(new Event(roleChangeEvent))
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/roles/session')
+      .then((response) => response.json())
+      .then((session) => {
+        if (!active) return
+        if (session.authenticated && isStoreRole(session.role)) {
+          setRoleState(session.role)
+          setAuthenticated(true)
+          window.localStorage.setItem(roleStorageKey, session.role)
+        } else {
+          setRoleState(getStoredRole())
+          setAuthenticated(false)
+        }
+      })
+      .catch(() => {
+        if (active) setAuthenticated(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
+
+  const setRole = useCallback((nextRole: StoreRole) => {
+    setRoleState(nextRole)
+    setAuthenticated(true)
+    window.localStorage.setItem(roleStorageKey, nextRole)
+    window.dispatchEvent(new Event(roleSessionChangeEvent))
+  }, [])
+
+  const logoutRole = useCallback(() => {
+    fetch('/api/roles/session', { method: 'DELETE' }).finally(() => {
+      setAuthenticated(false)
+      window.dispatchEvent(new Event(roleSessionChangeEvent))
+    })
+  }, [])
+
   const visibleNavItems = useMemo(() => navItems.filter((item) => item.roles.includes(role)), [role])
 
   return (
@@ -186,7 +212,7 @@ function AppShellContent({ children }: { children: React.ReactNode }) {
         </nav>
 
         <LanguageSwitcher language={language} setLanguage={setLanguage} />
-        <RoleSwitcher role={role} onRoleChange={setRole} />
+        <RoleSwitcher role={role} authenticated={authenticated} onRoleChange={setRole} onLogout={logoutRole} />
       </aside>
 
       <main className="app-main">

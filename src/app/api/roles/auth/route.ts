@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { setRoleSessionCookie } from '@/lib/auth'
 import { isStoreRole } from '@/lib/role-constants'
 import { verifyRolePassword } from '@/lib/roles'
 import { getRequestStoreId } from '@/lib/store-scope'
@@ -17,7 +18,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid role password' }, { status: 401 })
     }
 
-    return NextResponse.json({ role, storeId })
+    const response = NextResponse.json({ role, storeId })
+    setRoleSessionCookie(response, role, storeId)
+    return response
   } catch (error) {
     console.error('Role auth error:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

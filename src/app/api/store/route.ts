@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isValidE164PhoneNumber, normalizePhoneNumber } from '@/lib/phone'
 import { ensureStore, getRequestStoreId } from '@/lib/store-scope'
@@ -18,7 +19,19 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const storeId = await getRequestStoreId(request)
-    await ensureStore(storeId)
+    const existingStore = await ensureStore(storeId)
+
+    const isExistingStoreReady = Boolean(
+      existingStore.name &&
+      existingStore.ownerPhone &&
+      existingStore.provinceId &&
+      existingStore.districtId &&
+      existingStore.subDistrictId
+    )
+    if (isExistingStoreReady) {
+      const auth = await requireRole(storeId, ['Admin'])
+      if (!auth.ok) return auth.response
+    }
 
     const body = await request.json()
     const name = typeof body.name === 'string' ? body.name.trim() : ''

@@ -8,10 +8,12 @@ import { storeRoles, type StoreRole } from '@/lib/role-constants'
 
 type RoleSwitcherProps = {
   role: StoreRole
+  authenticated: boolean
   onRoleChange: (role: StoreRole) => void
+  onLogout: () => void
 }
 
-export default function RoleSwitcher({ role, onRoleChange }: RoleSwitcherProps) {
+export default function RoleSwitcher({ role, authenticated, onRoleChange, onLogout }: RoleSwitcherProps) {
   const { t } = useI18n()
   const [pendingRole, setPendingRole] = useState<StoreRole | null>(null)
   const [password, setPassword] = useState('')
@@ -19,7 +21,6 @@ export default function RoleSwitcher({ role, onRoleChange }: RoleSwitcherProps) 
   const [loading, setLoading] = useState(false)
 
   const handleChange = (nextRole: string) => {
-    if (nextRole === role) return
     if (nextRole === 'Admin' || nextRole === 'Manager' || nextRole === 'Cashier') {
       setPendingRole(nextRole)
       setPassword('')
@@ -52,7 +53,7 @@ export default function RoleSwitcher({ role, onRoleChange }: RoleSwitcherProps) 
         throw new Error(data.error || 'Unable to change role')
       }
 
-      onRoleChange(pendingRole)
+      onRoleChange(data.role ?? pendingRole)
       closeDialog()
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to change role')
@@ -86,6 +87,20 @@ export default function RoleSwitcher({ role, onRoleChange }: RoleSwitcherProps) 
           </option>
         ))}
       </select>
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem' }}>
+        <button type="button" className="btn btn-quiet" onClick={() => handleChange(role)} style={{ flex: 1 }}>
+          <Lock size={15} />
+          {authenticated ? 'เปลี่ยนสิทธิ์' : 'ปลดล็อก'}
+        </button>
+        {authenticated && (
+          <button type="button" className="btn btn-quiet" onClick={onLogout}>
+            ออกจากสิทธิ์
+          </button>
+        )}
+      </div>
+      <p style={{ color: authenticated ? 'rgba(255,255,255,0.58)' : '#f5c26b', fontSize: '0.72rem', marginTop: '0.55rem', lineHeight: 1.5 }}>
+        {authenticated ? `Server session: ${role}` : 'ต้องปลดล็อกก่อนใช้งาน API ที่มีสิทธิ์'}
+      </p>
       {pendingRole && (
         <div className="role-dialog-backdrop" role="presentation">
           <form className="role-dialog" onSubmit={confirmRole}>
