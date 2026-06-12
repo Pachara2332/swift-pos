@@ -219,13 +219,13 @@ function ProductsContent() {
             <tbody>
               {sortedProducts.map(product => (
                 <tr key={product.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '1rem 1.25rem', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--muted)' }}>{product.barcode}</td>
-                  <td style={{ padding: '1rem 1.25rem', fontWeight: 600 }}>{product.name}</td>
-                  <td style={{ padding: '1rem 1.25rem', color: 'var(--muted)' }}>{product.category || 'â€”'}</td>
-                  <td style={{ padding: '1rem 1.25rem', color: 'var(--muted)' }}>{product.brand || '—'}</td>
-                  <td style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 500 }}>฿{product.salePrice.toFixed(2)}</td>
-                  <td style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 600 }}>{product.stock}</td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
+                  <td data-label={t('inventory.barcode')} style={{ padding: '1rem 1.25rem', fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--muted)' }}>{product.barcode}</td>
+                  <td data-label={t('inventory.product')} style={{ padding: '1rem 1.25rem', fontWeight: 600 }}>{product.name}</td>
+                  <td data-label={t('inventory.category')} style={{ padding: '1rem 1.25rem', color: 'var(--muted)' }}>{product.category || '—'}</td>
+                  <td data-label={t('inventory.brand')} style={{ padding: '1rem 1.25rem', color: 'var(--muted)' }}>{product.brand || '—'}</td>
+                  <td data-label={t('inventory.price')} style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 500 }}>฿{product.salePrice.toFixed(2)}</td>
+                  <td data-label={t('inventory.stock')} style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 600 }}>{product.stock}</td>
+                  <td data-label={t('inventory.status')} style={{ padding: '1rem 1.25rem' }}>
                     {product.stock === 0 ? (
                       <span className="badge badge-danger">{t('inventory.out')}</span>
                     ) : product.stock <= product.lowStockAlert ? (
