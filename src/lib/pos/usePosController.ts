@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useId, useMemo, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   completedSalesKey,
   heldBillsKey,
@@ -85,7 +84,6 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     setQuickProductPrice,
     setQuickProductCategory,
   } = usePosStore()
-  const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const sessionId = `pos-${useId()}`
 
@@ -389,7 +387,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     try {
       const controller = new AbortController()
       timer = window.setTimeout(() => controller.abort(), 2500)
-      const res = await fetch(`/api/products/${encodeURIComponent(normalizedBarcode)}?external=1`, { signal: controller.signal })
+      const res = await fetch(`/api/products/${encodeURIComponent(normalizedBarcode)}`, { signal: controller.signal })
       const data = await res.json()
 
       if (res.ok && data.source === 'local') {
@@ -398,17 +396,8 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
         showScanFeedback('success', data.product.name, money.format(data.product.salePrice))
         setBarcodeInput('')
       } else {
-        const params = new URLSearchParams({ barcode: normalizedBarcode })
-        if (data.source === 'external') {
-          params.append('name', data.product.name)
-          params.append('brand', data.product.brand)
-          params.append('imageUrl', data.product.imageUrl)
-          setNotification({ type: 'info', message: t('pos.externalFound') })
-        } else {
-          setNotification({ type: 'info', message: t('pos.notFound') })
-          showScanFeedback('info', 'ไม่พบสินค้า', normalizedBarcode)
-        }
-        setTimeout(() => router.push(`/products/add?${params.toString()}`), 800)
+        setNotification({ type: 'info', message: 'ไม่พบสินค้านี้ในสต็อกร้าน' })
+        showScanFeedback('info', 'ไม่พบในสต็อก', normalizedBarcode)
       }
     } catch (error) {
       console.error('Scan error:', error)
@@ -418,7 +407,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
       if (timer) window.clearTimeout(timer)
       setLoading(false)
     }
-  }, [addProductToCart, products, router, setBarcodeInput, setLoading, setNotification, showScanFeedback, t])
+  }, [addProductToCart, products, setBarcodeInput, setLoading, setNotification, showScanFeedback, t])
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && barcodeInput) handleScan(barcodeInput)

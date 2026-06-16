@@ -683,6 +683,65 @@ table tbody tr:hover {
   gap: 0.75rem;
 }
 
+.scanner-choice-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.scanner-close-button {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.barcode-scan-surface {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  padding: 1rem;
+  text-align: center;
+}
+
+.barcode-scan-surface > svg {
+  color: var(--primary);
+}
+
+.barcode-scan-error {
+  border-color: rgba(184, 70, 47, 0.28);
+  background: var(--danger-light);
+}
+
+.barcode-scan-error > svg {
+  color: var(--danger);
+}
+
+.barcode-reader {
+  width: min(100%, 520px);
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.barcode-file-input {
+  display: none;
+}
+
+.scan-helper-text {
+  max-width: 38rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.scan-helper-error {
+  color: var(--danger);
+}
+
 .scan-feedback {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -2100,6 +2159,15 @@ table tbody tr:hover {
   }
 
   .scanner-controls .btn {
+    width: 100%;
+  }
+
+  .scanner-choice-panel {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scanner-close-button {
+    grid-column: 1 / -1;
     width: 100%;
   }
 

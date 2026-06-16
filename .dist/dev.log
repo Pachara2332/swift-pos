@@ -1,0 +1,12 @@
+
+> swift-pos@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.7 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.126:3000
+- Environments: .env.local, .env
+✓ Ready in 1052ms
+Creating turbopack project { dir: 'E:\\projects\\swift-pos', testMode: true }
+
+[?25h

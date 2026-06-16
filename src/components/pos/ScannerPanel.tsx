@@ -1,7 +1,7 @@
 'use client'
 
-import type { KeyboardEvent, RefObject } from 'react'
-import { Camera, ScanLine, Search } from 'lucide-react'
+import { useState, type KeyboardEvent, type RefObject } from 'react'
+import { Camera, ImageUp, ScanLine, Search, X } from 'lucide-react'
 import BarcodeScanner from '@/components/BarcodeScanner'
 import type { ScanFeedback } from '@/lib/pos/types'
 
@@ -30,6 +30,18 @@ export default function ScannerPanel({
   onBarcodeKeyDown,
   onScan,
 }: ScannerPanelProps) {
+  const [scanMode, setScanMode] = useState<'camera' | 'upload' | null>(null)
+
+  const openScanMode = (mode: 'camera' | 'upload') => {
+    if (!showCamera) onToggleCamera()
+    setScanMode(mode)
+  }
+
+  const closeScanner = () => {
+    setScanMode(null)
+    if (showCamera) onToggleCamera()
+  }
+
   return (
     <>
       <section className="card">
@@ -53,9 +65,9 @@ export default function ScannerPanel({
               autoFocus
             />
           </div>
-          <button className="btn btn-primary" onClick={onToggleCamera}>
+          <button className="btn btn-primary" onClick={showCamera ? closeScanner : onToggleCamera}>
             <Camera size={18} />
-            {showCamera ? t('pos.close') : t('pos.camera')}
+            {showCamera ? t('pos.close') : 'สแกน'}
           </button>
         </div>
 
@@ -69,7 +81,21 @@ export default function ScannerPanel({
 
       {showCamera && (
         <section className="card">
-          <BarcodeScanner onScan={onScan} />
+          <div className="scanner-choice-panel">
+            <button type="button" className={scanMode === 'camera' ? 'btn btn-primary' : 'btn btn-quiet'} onClick={() => openScanMode('camera')}>
+              <Camera size={18} />
+              เปิดกล้อง
+            </button>
+            <button type="button" className={scanMode === 'upload' ? 'btn btn-primary' : 'btn btn-quiet'} onClick={() => openScanMode('upload')}>
+              <ImageUp size={18} />
+              อัปโหลดภาพ
+            </button>
+            <button type="button" className="btn btn-quiet scanner-close-button" onClick={closeScanner} aria-label="ปิดตัวสแกน">
+              <X size={18} />
+            </button>
+          </div>
+
+          {scanMode && <BarcodeScanner mode={scanMode} onScan={onScan} />}
         </section>
       )}
     </>
