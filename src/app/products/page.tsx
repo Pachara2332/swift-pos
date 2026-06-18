@@ -1,8 +1,9 @@
 'use client';
 import { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Package, Search, AlertTriangle, Radio } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Package, Search, AlertTriangle, Radio, Eye, X, Barcode, Boxes, CalendarClock } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { createBarcodeLabelSvg } from '@/lib/barcode-label';
 import { useI18n } from '@/lib/i18n';
 import { useActiveRole } from '@/lib/role-context';
 
@@ -16,10 +17,21 @@ type Product = {
   salePrice: number;
   costPrice: number;
   lowStockAlert: number;
+  imageUrl?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type SortKey = 'barcode' | 'name' | 'category' | 'brand' | 'salePrice' | 'stock' | 'status';
 type SortDirection = 'asc' | 'desc';
+
+const detailBarcodeSize = {
+  width: 460,
+  height: 190,
+  module: 2,
+  barHeight: 82,
+  fontSize: 18,
+};
 
 export default function ProductsPage() {
   return (
@@ -67,11 +79,26 @@ function getSortValue(product: Product, sortKey: SortKey) {
   return product[sortKey] ?? '';
 }
 
+function getProductStatus(product: Product) {
+  if (product.stock === 0) return 'out';
+  if (product.stock <= product.lowStockAlert) return 'low';
+  return 'in';
+}
+
+function ProductStatusBadge({ product, t }: { product: Product; t: (key: string) => string }) {
+  const status = getProductStatus(product);
+
+  if (status === 'out') return <span className="badge badge-danger">{t('inventory.out')}</span>;
+  if (status === 'low') return <span className="badge badge-warning">{t('inventory.low')}</span>;
+  return <span className="badge badge-success">{t('inventory.inStock')}</span>;
+}
+
 function ProductsContent() {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const { role } = useActiveRole();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -146,6 +173,38 @@ function ProductsContent() {
     setSortDirection('asc');
   };
 
+  const formatDateTime = (value?: string) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+
+    return new Intl.DateTimeFormat(language === 'th' ? 'th-TH' : 'en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  };
+
+  const selectedBarcodePreview = useMemo(() => {
+    if (!selectedProduct) return { svg: '', error: '' };
+
+    try {
+      return {
+        svg: createBarcodeLabelSvg({
+          value: selectedProduct.barcode.trim(),
+          title: selectedProduct.name.trim(),
+          price: selectedProduct.salePrice.toFixed(2),
+          size: detailBarcodeSize,
+        }),
+        error: '',
+      };
+    } catch (error) {
+      return {
+        svg: '',
+        error: error instanceof Error ? error.message : 'Unable to render barcode',
+      };
+    }
+  }, [selectedProduct]);
+
   return (
     <div>
       <div className="page-toolbar">
@@ -214,6 +273,9 @@ function ProductsContent() {
                 <SortableHeader label={t('inventory.price')} sortKey="salePrice" activeSortKey={sortKey} direction={sortDirection} onSort={changeSort} align="right" />
                 <SortableHeader label={t('inventory.stock')} sortKey="stock" activeSortKey={sortKey} direction={sortDirection} onSort={changeSort} align="right" />
                 <SortableHeader label={t('inventory.status')} sortKey="status" activeSortKey={sortKey} direction={sortDirection} onSort={changeSort} />
+                <th className="sortable-header inventory-action-header">
+                  <span>{language === 'th' ? 'รายละเอียด' : 'Details'}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -226,19 +288,24 @@ function ProductsContent() {
                   <td data-label={t('inventory.price')} style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 500 }}>฿{product.salePrice.toFixed(2)}</td>
                   <td data-label={t('inventory.stock')} style={{ padding: '1rem 1.25rem', textAlign: 'right', fontWeight: 600 }}>{product.stock}</td>
                   <td data-label={t('inventory.status')} style={{ padding: '1rem 1.25rem' }}>
-                    {product.stock === 0 ? (
-                      <span className="badge badge-danger">{t('inventory.out')}</span>
-                    ) : product.stock <= product.lowStockAlert ? (
-                      <span className="badge badge-warning">{t('inventory.low')}</span>
-                    ) : (
-                      <span className="badge badge-success">{t('inventory.inStock')}</span>
-                    )}
+                    <ProductStatusBadge product={product} t={t} />
+                  </td>
+                  <td data-label={language === 'th' ? 'รายละเอียด' : 'Details'} className="inventory-action-cell">
+                    <button
+                      type="button"
+                      className="inventory-detail-button"
+                      onClick={() => setSelectedProduct(product)}
+                      aria-label={`${language === 'th' ? 'ดูรายละเอียด' : 'View details'} ${product.name}`}
+                      title={language === 'th' ? 'ดูรายละเอียด' : 'View details'}
+                    >
+                      <Eye size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
               {sortedProducts.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+                  <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
                     <Package size={40} style={{ opacity: 0.2, margin: '0 auto 0.5rem', display: 'block' }} />
                     {t('inventory.noProducts')}
                   </td>
@@ -248,6 +315,95 @@ function ProductsContent() {
           </table>
         )}
       </div>
+
+      {selectedProduct && (
+        <div className="inventory-detail-backdrop" role="presentation" onClick={() => setSelectedProduct(null)}>
+          <section
+            className="inventory-detail-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="inventory-detail-title"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="inventory-detail-header">
+              <div className="inventory-detail-title-row">
+                {selectedProduct.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedProduct.imageUrl} alt="" className="inventory-detail-image" />
+                ) : (
+                  <div className="inventory-detail-image-placeholder">
+                    <Package size={24} />
+                  </div>
+                )}
+                <div>
+                  <span>{selectedProduct.category || (language === 'th' ? 'ยังไม่ระบุประเภท' : 'Uncategorized')}</span>
+                  <h2 id="inventory-detail-title">{selectedProduct.name}</h2>
+                  <ProductStatusBadge product={selectedProduct} t={t} />
+                </div>
+              </div>
+              <button
+                type="button"
+                className="inventory-detail-close"
+                onClick={() => setSelectedProduct(null)}
+                aria-label={language === 'th' ? 'ปิดรายละเอียดสินค้า' : 'Close product details'}
+                title={language === 'th' ? 'ปิด' : 'Close'}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="inventory-detail-summary">
+              <div>
+                <span>{t('inventory.stock')}</span>
+                <strong>{selectedProduct.stock}</strong>
+              </div>
+              <div>
+                <span>{t('inventory.price')}</span>
+                <strong>฿{selectedProduct.salePrice.toFixed(2)}</strong>
+              </div>
+              <div>
+                <span>{language === 'th' ? 'สต็อกต่ำเมื่อเหลือ' : 'Low stock at'}</span>
+                <strong>{selectedProduct.lowStockAlert}</strong>
+              </div>
+            </div>
+
+            <div className="inventory-detail-barcode">
+              {selectedBarcodePreview.svg ? (
+                <div dangerouslySetInnerHTML={{ __html: selectedBarcodePreview.svg }} />
+              ) : (
+                <p>{selectedBarcodePreview.error || (language === 'th' ? 'สร้างภาพบาร์โค้ดไม่ได้' : 'Barcode image unavailable')}</p>
+              )}
+            </div>
+
+            <dl className="inventory-detail-list">
+              <div>
+                <dt><Barcode size={15} />{t('inventory.barcode')}</dt>
+                <dd className="mono">{selectedProduct.barcode}</dd>
+              </div>
+              <div>
+                <dt><Package size={15} />{t('inventory.brand')}</dt>
+                <dd>{selectedProduct.brand || '-'}</dd>
+              </div>
+              <div>
+                <dt><Boxes size={15} />{t('inventory.category')}</dt>
+                <dd>{selectedProduct.category || '-'}</dd>
+              </div>
+              <div>
+                <dt><CalendarClock size={15} />{language === 'th' ? 'อัปเดตล่าสุด' : 'Last updated'}</dt>
+                <dd>{formatDateTime(selectedProduct.updatedAt)}</dd>
+              </div>
+              <div>
+                <dt>{language === 'th' ? 'ราคาทุน' : 'Cost price'}</dt>
+                <dd>฿{selectedProduct.costPrice.toFixed(2)}</dd>
+              </div>
+              <div>
+                <dt>{language === 'th' ? 'เพิ่มเมื่อ' : 'Created'}</dt>
+                <dd>{formatDateTime(selectedProduct.createdAt)}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
