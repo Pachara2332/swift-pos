@@ -85,6 +85,7 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     setQuickProductCategory,
   } = usePosStore()
   const inputRef = useRef<HTMLInputElement>(null)
+  const offlineSyncInFlightRef = useRef(false)
   const sessionId = `pos-${useId()}`
 
   useEffect(() => {
@@ -596,8 +597,10 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     }
   }
 
-  const syncOfflineSales = async () => {
+  const syncOfflineSales = useCallback(async () => {
     if (offlineSales.length === 0) return
+    if (offlineSyncInFlightRef.current) return
+    offlineSyncInFlightRef.current = true
     setLoading(true)
     const remaining: OfflineSale[] = []
 
@@ -615,9 +618,16 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
       type: remaining.length === 0 ? 'success' : 'info',
       message: remaining.length === 0 ? 'Sync บิลค้างครบแล้ว' : `ยังเหลือบิลรอ sync ${remaining.length} บิล`,
     })
+    offlineSyncInFlightRef.current = false
     setLoading(false)
     loadProducts()
-  }
+  }, [loadProducts, offlineSales, setLoading, setNotification, setOfflineSales])
+
+  useEffect(() => {
+    if (liveStatus !== 'live') return
+    if (offlineSales.length === 0) return
+    void syncOfflineSales()
+  }, [liveStatus, offlineSales.length, syncOfflineSales])
 
   const saveQuickProduct = async () => {
     const name = quickProductName.trim()

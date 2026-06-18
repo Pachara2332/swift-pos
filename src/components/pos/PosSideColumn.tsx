@@ -92,7 +92,7 @@ export default function PosSideColumn({
       />
       <HeldBillsPanel heldBills={heldBills} onRestoreHeldBill={onRestoreHeldBill} onRemoveHeldBill={onRemoveHeldBill} />
       <CloseDayPanel todayRevenue={todayRevenue} todayCash={todayCash} todaySalesCount={todaySalesCount} topTodayProduct={topTodayProduct} />
-      <OfflineSyncPanel offlineSales={offlineSales} loading={loading} onSyncOfflineSales={onSyncOfflineSales} />
+      <OfflineSyncPanel offlineSales={offlineSales} liveStatus={liveStatus} loading={loading} onSyncOfflineSales={onSyncOfflineSales} />
     </div>
   )
 }
