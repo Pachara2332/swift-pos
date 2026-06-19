@@ -10,27 +10,77 @@ type SaleRequestItem = {
   price: number
 }
 
+function toFiniteNumber(value: unknown) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function normalizeSaleItems(items: unknown) {
+  if (!Array.isArray(items) || items.length === 0) return null
+
+  const normalized = items.map((item) => {
+    const candidate = item as Partial<SaleRequestItem>
+    const productId = typeof candidate.productId === 'string' ? candidate.productId.trim() : ''
+    const quantity = toFiniteNumber(candidate.quantity)
+    const price = toFiniteNumber(candidate.price)
+
+    if (!productId || quantity === null || price === null || !Number.isInteger(quantity) || quantity <= 0 || price < 0) {
+      return null
+    }
+
+    return { productId, quantity, price }
+  })
+
+  if (normalized.some((item) => item === null)) return null
+  return normalized as SaleRequestItem[]
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { total, paidAmount, change, items, paymentType, customerId } = body as {
-      total: number
-      paidAmount: number
-      change: number
+      total: unknown
+      paidAmount: unknown
+      change: unknown
       paymentType?: string
       customerId?: string
-      items?: SaleRequestItem[]
+      items?: unknown
     }
     const storeId = await getRequestStoreId(request)
     const auth = await requireRole(storeId, ['Admin', 'Manager', 'Cashier'])
     if (!auth.ok) return auth.response
 
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: 'Sale must have items' }, { status: 400 })
+    const normalizedTotal = toFiniteNumber(total)
+    const normalizedPaidAmount = toFiniteNumber(paidAmount)
+    const normalizedChange = toFiniteNumber(change)
+    const normalizedItems = normalizeSaleItems(items)
+    const normalizedPaymentType = paymentType === 'credit' ? 'credit' : 'cash'
+    const normalizedCustomerId = typeof customerId === 'string' && customerId.trim() ? customerId.trim() : null
+
+    if (normalizedTotal === null || normalizedTotal < 0 || normalizedPaidAmount === null || normalizedPaidAmount < 0 || normalizedChange === null) {
+      return NextResponse.json({ error: 'Sale totals are invalid' }, { status: 400 })
     }
 
-    if (customerId) {
-      const customer = await prisma.debtCustomer.findFirst({ where: { id: customerId, storeId } })
+    if (!normalizedItems) {
+      return NextResponse.json({ error: 'Sale must have valid items' }, { status: 400 })
+    }
+
+    const products = await prisma.product.findMany({
+      where: { id: { in: normalizedItems.map((item) => item.productId) }, storeId },
+      select: { id: true },
+    })
+    const productIds = new Set(products.map((product) => product.id))
+    const missingProductIds = Array.from(new Set(normalizedItems.map((item) => item.productId))).filter((id) => !productIds.has(id))
+
+    if (missingProductIds.length > 0) {
+      return NextResponse.json({
+        error: 'Sale contains products that are not available in this store',
+        missingProductIds,
+      }, { status: 409 })
+    }
+
+    if (normalizedCustomerId) {
+      const customer = await prisma.debtCustomer.findFirst({ where: { id: normalizedCustomerId, storeId } })
       if (!customer) {
         return NextResponse.json({ error: 'Debt customer was not found' }, { status: 400 })
       }
@@ -42,13 +92,13 @@ export async function POST(request: Request) {
       const sale = await tx.sale.create({
         data: {
           storeId,
-          total: Number(total),
-          paidAmount: Number(paidAmount),
-          change: Number(change),
-          paymentType: paymentType === 'credit' ? 'credit' : 'cash',
-          customerId: customerId || null,
+          total: normalizedTotal,
+          paidAmount: normalizedPaidAmount,
+          change: normalizedChange,
+          paymentType: normalizedPaymentType,
+          customerId: normalizedCustomerId,
           items: {
-            create: items.map((item) => ({
+            create: normalizedItems.map((item) => ({
               storeId,
               productId: item.productId,
               quantity: item.quantity,
@@ -59,7 +109,7 @@ export async function POST(request: Request) {
       })
 
       // 2. Decrement stock for each product
-      for (const item of items) {
+      for (const item of normalizedItems) {
         await tx.product.updateMany({
           where: { id: item.productId, storeId },
           data: {
@@ -70,15 +120,15 @@ export async function POST(request: Request) {
         })
       }
 
-      const debtEntry = paymentType === 'credit' && customerId
+      const debtEntry = normalizedPaymentType === 'credit' && normalizedCustomerId
         ? await tx.debtEntry.create({
           data: {
             storeId,
-            customerId,
+            customerId: normalizedCustomerId,
             saleId: sale.id,
             type: 'sale',
-            amount: Number(total),
-            note: `ขายเชื่อ ${items.length} รายการ`,
+            amount: normalizedTotal,
+            note: `ขายเชื่อ ${normalizedItems.length} รายการ`,
           },
         })
         : null
@@ -89,7 +139,7 @@ export async function POST(request: Request) {
     publishRealtime({
       type: 'sale.completed',
       saleId: result.sale.id,
-      productIds: items.map((item) => item.productId),
+      productIds: normalizedItems.map((item) => item.productId),
       createdAt: new Date().toISOString(),
     })
 

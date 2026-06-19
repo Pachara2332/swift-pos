@@ -344,7 +344,16 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!res.ok) throw new Error('sale failed')
+    if (!res.ok) {
+      let detail = ''
+      try {
+        const body = await res.json() as { error?: string }
+        detail = body.error ? `: ${body.error}` : ''
+      } catch {
+        detail = ''
+      }
+      throw new Error(`sale failed (${res.status})${detail}`)
+    }
     return res.json() as Promise<{ id: string; createdAt?: string; debtEntry?: DebtEntry | null }>
   }
 
@@ -607,7 +616,8 @@ export function usePosController({ activeTool, t }: UsePosControllerOptions) {
     for (const sale of offlineSales) {
       try {
         await postSale(sale.payload)
-      } catch {
+      } catch (error) {
+        console.warn('Offline sale sync failed:', error)
         remaining.push(sale)
       }
     }
